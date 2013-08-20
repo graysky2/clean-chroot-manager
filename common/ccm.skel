@@ -1,0 +1,15 @@
+# For documentation, see the manpage for clean-chroot-manager
+
+# Fully qualified path for the clean chroots. Do NOT use a variable like $HOME
+# If your machine has lots of memory, consider locating this to tmpfs to avoid
+# usage to the disk and to minimize access times but know that unless you copy
+# the contents to physical media, it will not survive a reboot
+CHROOTPATH=/scratch/chroot64
+
+# Number of threads makepkg in the clean chroot will use when building
+# Note that the official Arch package defaults to 2
+THREADS=9
+
+# Set this variable to anything if you want to run namcap on the built package
+# Leave it empty (default) if you do not want to run namcap
+RUNNAMCAP=
