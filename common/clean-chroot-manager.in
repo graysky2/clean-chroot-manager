@@ -33,7 +33,7 @@ if [[ -t 2 ]]; then
 		YELLOW="${BOLD}\e[1;33m"
 	fi
 fi
-readonly ALL_OFF BOLD BLUE GREEN RED
+readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 
 ### End insert of Arch script
 USER=$(logname)
@@ -149,7 +149,7 @@ EOF
 	fi
 	
 	# setup a local repo and add adjust files in chroot
-	[[ ! -d $CHROOTPATH/root/repo ]] &&	mkdir $CHROOTPATH/root/repo
+	[[ ! -d $CHROOTPATH/root/repo ]] && mkdir $CHROOTPATH/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 	for i in *.pkg.tar.xz; do
@@ -211,6 +211,7 @@ preview() {
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH $PRESENT"${ALL_OFF}
 	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
+	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [testing]:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$TESTING"${ALL_OFF}
 	echo -en ${BOLD}" makeflags:"
@@ -236,7 +237,7 @@ REPO="$CHROOTPATH/root/repo"
 
 case "$1" in
 	c)
-		create && update
+		create
 		;;
 	t)
 		check2 && testing
