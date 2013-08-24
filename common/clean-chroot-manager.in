@@ -71,7 +71,7 @@ check() {
 
 		# parse config file for correctness
 		if [[ ! -d $CHROOTPATH ]]; then
-			local mesg="Invalid CHROOTPATH defined in $SKEL"
+			local mesg="Invalid CHROOTPATH defined in $CFGFILE"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 		fi
 
