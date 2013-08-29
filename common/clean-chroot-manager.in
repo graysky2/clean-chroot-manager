@@ -106,10 +106,16 @@ create() {
 	# setup the chroot
 	mkarchroot $CHROOTPATH/root base-devel
 
-	# activate number of threads user defined in chroot
-	sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH/root/etc/makepkg.conf
-
-	# enable pacman color output in chroot
+	# setup /etc/makepkg.conf in the chroot
+	if [[ -z "$PACKAGER" ]]; then
+		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH/root/etc/makepkg.conf
+	else
+		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
+			-i -e '/^#PACKAGER/ s,#,,' \
+			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH/root/etc/makepkg.conf
+	fi
+	
+	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH/root/etc/pacman.conf
 }
 
