@@ -194,6 +194,8 @@ testing() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^#\[testing\]/ s,#,,' \
 			-i -e '/^\[testing\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
+		sed -i -e '/^#\[community-testing\]/ s,#,,' \
+			-i -e '/^\[community-testing\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
 		local mesg="Forcing an update to use any affected packages..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		arch-nspawn $CHROOTPATH/root pacman -Syu --noconfirm
@@ -203,6 +205,8 @@ testing() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[testing\]/ s,\[,#\[,' \
 			-i -e '/^#\[testing\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
+		sed -i -e '/^\[community-testing\]/ s,\[,#\[,' \
+			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		arch-nspawn $CHROOTPATH/root pacman -Suu --noconfirm
