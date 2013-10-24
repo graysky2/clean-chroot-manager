@@ -261,7 +261,7 @@ preview() {
 	[[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
-	echo -en ${BOLD}" [testing]:"
+	echo -en ${BOLD}" [multilib]:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$MULTILIB"${ALL_OFF}
 	echo -en ${BOLD}" makeflags:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$THREADS"${ALL_OFF}
