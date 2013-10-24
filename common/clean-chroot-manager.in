@@ -95,6 +95,18 @@ check() {
 			export TESTING="Enabled"
 		fi
 	fi
+	
+	# identify status of multilib repo
+	PACFILE="$CHROOTPATH/root/etc/pacman.conf"
+	if [[ -f "$PACFILE" ]]; then
+		if [[ $(grep '^#\[multilib\]' "$PACFILE") ]]; then
+			# multilib repo is not enabled
+			export MULTILIB="Disabled"
+		elif [[ $(grep '^\[multilib\]' "$PACFILE") ]]; then
+			# multilib repo is enabled
+			export MULTILIB="Enabled"
+		fi
+	fi
 }
 
 create() {
@@ -213,6 +225,28 @@ testing() {
 	fi
 }
 
+multilib() {
+	if [[ "$MULTILIB" = "Disabled" ]]; then
+		# switch on multilib
+		local mesg="Enabling [multilib] in chroot..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		sed -i -e '/^#\[multilib\]/ s,#,,' \
+			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
+		local mesg="Forcing an update to use any affected packages..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH/root pacman -Syu --noconfirm
+	elif [[ "$MULTILIB" = "Enabled" ]]; then
+		# switch off testing
+		local mesg="Disabling [multilib] in chroot..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
+			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
+		local mesg="Downgrading affected packages if any..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH/root pacman -Suu --noconfirm
+	fi
+}
+
 preview() {
 	[[ -f $CHROOTPATH/root/.arch-chroot ]] && \
 		PRESENT="${BOLD}${GREEN}(Present)${ALL_OFF}" || \
@@ -224,6 +258,11 @@ preview() {
 	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [testing]:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$TESTING"${ALL_OFF}
+	[[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
+	[[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
+	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
+	echo -en ${BOLD}" [testing]:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$MULTILIB"${ALL_OFF}
 	echo -en ${BOLD}" makeflags:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$THREADS"${ALL_OFF}
 	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
@@ -253,6 +292,10 @@ case "$1" in
 		check2 && testing
 		# no need to call update since testing function handles this
 		;;
+	m)
+		check2 && multilib
+		# no need to call update since multilib function handles this
+		;;
 	l)
 		check2 && list
 		;;
@@ -263,7 +306,13 @@ case "$1" in
 		header && preview
 		;;
 	s)
-		check2 && build
+		if [[ ! -f $CHROOTPATH/root/.arch-chroot ]]; then
+			mesg="No chroot has been created so making one now..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			mesg=
+			create
+		fi
+			build
 		;;
 	u)
 		check2 && update
@@ -275,6 +324,7 @@ case "$1" in
 		echo -e ${BOLD}" --- SETUP ---"
 		echo -e ${BOLD}" c) Create a clean chroot in $CHROOTPATH"${ALL_OFF}
 		echo -e ${BOLD}" t) Toggle [testing] on/off in the chroot"${ALL_OFF}
+		echo -e ${BOLD}" m) Toggle [multilib] on/off in the chroot"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
 		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
