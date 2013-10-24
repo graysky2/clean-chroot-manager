@@ -11,7 +11,7 @@ An illustrative example: we want to build 'bar' from the AUR.  'Bar' has a build
 | :---: | --- |
 | c | Create a clean chroot. |
 | t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
-| m | Toggle [multilib]i on/off in the chroot and update packages accordingly (upgrade or downgrade). |
+| m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -src` in the chroot. |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | n | Nuke the clean chroot (delete it and everything under it). |
