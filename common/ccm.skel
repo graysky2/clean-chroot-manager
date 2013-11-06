@@ -18,3 +18,8 @@ PACKAGER=""
 # Set this variable to anything if you want to run namcap on the built package
 # Leave it empty (default) if you do not want to run namcap
 RUNNAMCAP=
+
+# Uncomment and change paths to the directories where the output files should be placed
+#export PKGDEST=/scratch/pkgfiles
+#export SRCDEST=/scratch/sources
+#export LOGDEST=/scratch/pkgbuildlogs
