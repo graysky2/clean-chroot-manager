@@ -144,13 +144,38 @@ build() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-	if [[ -z "$RUNNAMCAP" ]]; then
-		makechrootpkg -c -u -r $CHROOTPATH
-	else
-		makechrootpkg -c -u -n -r $CHROOTPATH
+	# turn off cleaning chroot as an option
+	case "$1" in
+		nc) options=""
+			copy=$USER
+			[[ -n $SUDO_USER ]] && copy=$SUDO_USER
+			[[ -z "$copy" || $copy = root ]] && copy=copy
+			local mesg="Updating working chroot repo..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			pushd $REPO > /dev/null
+			WORKREPO=$CHROOTPATH/$copy/repo
+			for i in *.pkg.tar.xz; do
+				cp "$i" $WORKREPO
+				repo-add $WORKREPO/chroot_local.db.tar.gz $WORKREPO/"$i"
+
+				# ensure that the chroot package matches the live pacman cache package
+				# which avoids checksum errors if the user builds the same $pkgname-$pkgver
+				# more than once
+				[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+			done
+			popd > /dev/null
+			;;
+		*) options="-c"
+			;;
+	esac
+
+	if [[ -n "$RUNNAMCAP" ]]; then
+		options="$options -n"
 	fi
 
-	# stop here is build fails
+	makechrootpkg $options -u -r $CHROOTPATH
+
+	# stop here if build fails
 	[[ $? -gt 0 ]] && exit 1
 
 	# if this is the first time package has been successfully built
@@ -170,15 +195,18 @@ EOF
 	[[ ! -d $CHROOTPATH/root/repo ]] && mkdir $CHROOTPATH/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	pkgpath=$(pwd) && [[ -n "$PKGDEST" ]] && pkgpath=$PKGDEST
+	pushd $pkgpath > /dev/null
 	for i in *.pkg.tar.xz; do
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
 
-		# insure that the chroot package matches the live pacman cache package
+		# ensure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
 	done
+	popd > /dev/null
 }
 
 update() {
@@ -312,7 +340,12 @@ case "$1" in
 			mesg=
 			create
 		fi
-			build
+
+		case "$2" in
+			nc) options="nc";;
+			*) options="";;
+		esac
+		build $options
 		;;
 	u)
 		check2 && update
@@ -328,6 +361,7 @@ case "$1" in
 		echo
 		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
 		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
+		echo -e ${BOLD}" s nc) Run makepkg in clean chroot, but do not clean chroot before building"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
 		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
