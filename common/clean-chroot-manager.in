@@ -170,6 +170,8 @@ EOF
 	[[ ! -d $CHROOTPATH/root/repo ]] && mkdir $CHROOTPATH/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	pkgpath=$(pwd) && [[ -n "$PKGDEST" ]] && pkgpath=$PKGDEST
+	pushd $pkgpath > /dev/null
 	for i in *.pkg.tar.xz; do
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
@@ -179,6 +181,7 @@ EOF
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
 	done
+	popd > /dev/null
 }
 
 update() {
