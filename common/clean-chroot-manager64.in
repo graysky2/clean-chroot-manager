@@ -70,8 +70,8 @@ check() {
 		. $CFGFILE
 
 		# parse config file for correctness
-		if [[ ! -d $CHROOTPATH ]]; then
-			local mesg="Invalid CHROOTPATH defined in $CFGFILE"
+		if [[ ! -d $CHROOTPATH64 ]]; then
+			local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 		fi
 
@@ -85,7 +85,7 @@ check() {
 	fi
 
 	# identify status of testing repo
-	PACFILE="$CHROOTPATH/root/etc/pacman.conf"
+	PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
 	if [[ -f "$PACFILE" ]]; then
 		if [[ $(grep '^#\[testing\]' "$PACFILE") ]]; then
 			# testing repo is not enabled
@@ -97,7 +97,7 @@ check() {
 	fi
 	
 	# identify status of multilib repo
-	PACFILE="$CHROOTPATH/root/etc/pacman.conf"
+	PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
 	if [[ -f "$PACFILE" ]]; then
 		if [[ $(grep '^#\[multilib\]' "$PACFILE") ]]; then
 			# multilib repo is not enabled
@@ -110,29 +110,29 @@ check() {
 }
 
 create() {
-	if [[ -f $CHROOTPATH/root/.arch-chroot ]]; then
-		local mesg="Working directory $CHROOTPATH already exists."
+	if [[ -f $CHROOTPATH64/root/.arch-chroot ]]; then
+		local mesg="Working directory $CHROOTPATH64 already exists."
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 	fi
 
 	# setup the chroot
-	mkarchroot $CHROOTPATH/root base-devel
+	mkarchroot $CHROOTPATH64/root base-devel
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then
-		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH/root/etc/makepkg.conf
+		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH64/root/etc/makepkg.conf
 	else
 		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
 			-i -e '/^#PACKAGER/ s,#,,' \
-			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH/root/etc/makepkg.conf
+			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH64/root/etc/makepkg.conf
 	fi
 	
 	# enable pacman color output in chroot because I like it
-	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH/root/etc/pacman.conf
+	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH64/root/etc/pacman.conf
 }
 
 check2() {
-	if [[ ! -f $CHROOTPATH/root/.arch-chroot ]]; then
+	if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
 		local mesg="Create a chroot first using the 'c' option and try again."
 		echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		exit 1
@@ -145,9 +145,9 @@ build() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		makechrootpkg -c -u -r $CHROOTPATH
+		makechrootpkg -c -u -r $CHROOTPATH64
 	else
-		makechrootpkg -c -u -n -r $CHROOTPATH
+		makechrootpkg -c -u -n -r $CHROOTPATH64
 	fi
 
 	# stop here is build fails
@@ -155,9 +155,9 @@ build() {
 
 	# if this is the first time package has been successfully built
 	# then append the local repo to the chroot's pacman.conf
-	if [[ -z $(grep clean-chroot $CHROOTPATH/root/etc/pacman.conf) ]]; then
+	if [[ -z $(grep clean-chroot $CHROOTPATH64/root/etc/pacman.conf) ]]; then
 		# add a local repo to chroot
-		cat << EOF >> $CHROOTPATH/root/etc/pacman.conf
+		cat << EOF >> $CHROOTPATH64/root/etc/pacman.conf
 
 # Added by $PKG
 [chroot_local]
@@ -167,10 +167,11 @@ EOF
 	fi
 	
 	# setup a local repo and add adjust files in chroot
-	[[ ! -d $CHROOTPATH/root/repo ]] && mkdir $CHROOTPATH/root/repo
+	[[ ! -d $CHROOTPATH64/root/repo ]] && mkdir $CHROOTPATH64/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 	for i in *.pkg.tar.xz; do
+
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
 
@@ -184,7 +185,7 @@ EOF
 update() {
 	local mesg="Updating the chroot..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	arch-nspawn $CHROOTPATH/root pacman -Syu --noconfirm
+	arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 }
 
 list() {
@@ -205,23 +206,23 @@ testing() {
 		local mesg="Enabling [testing] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^#\[testing\]/ s,#,,' \
-			-i -e '/^\[testing\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^\[testing\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
 		sed -i -e '/^#\[community-testing\]/ s,#,,' \
-			-i -e '/^\[community-testing\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^\[community-testing\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Forcing an update to use any affected packages..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH/root pacman -Syu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 	elif [[ "$TESTING" = "Enabled" ]]; then
 		# switch off testing
 		local mesg="Disabling [testing] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[testing\]/ s,\[,#\[,' \
-			-i -e '/^#\[testing\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^#\[testing\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		sed -i -e '/^\[community-testing\]/ s,\[,#\[,' \
-			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH/root pacman -Suu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Suu --noconfirm
 	fi
 }
 
@@ -231,28 +232,28 @@ multilib() {
 		local mesg="Enabling [multilib] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^#\[multilib\]/ s,#,,' \
-			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Forcing an update to use any affected packages..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH/root pacman -Syu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 	elif [[ "$MULTILIB" = "Enabled" ]]; then
 		# switch off testing
 		local mesg="Disabling [multilib] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
-			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH/root/etc/pacman.conf
+			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH/root pacman -Suu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Suu --noconfirm
 	fi
 }
 
 preview() {
-	[[ -f $CHROOTPATH/root/.arch-chroot ]] && \
+	[[ -f $CHROOTPATH64/root/.arch-chroot ]] && \
 		PRESENT="${BOLD}${GREEN}(Present)${ALL_OFF}" || \
 		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
 	echo -en ${BOLD}" chroot path:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH $PRESENT"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH64 $PRESENT"${ALL_OFF}
 	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
@@ -278,11 +279,11 @@ header() {
 nuke() {
 	local mesg="Nuking the chroot..."
 	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	rm -rf $CHROOTPATH/*
+	rm -rf $CHROOTPATH64/*
 }
 
 check
-REPO="$CHROOTPATH/root/repo"
+REPO="$CHROOTPATH64/root/repo"
 
 case "$1" in
 	c)
@@ -306,7 +307,7 @@ case "$1" in
 		header && preview
 		;;
 	s)
-		if [[ ! -f $CHROOTPATH/root/.arch-chroot ]]; then
+		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			mesg=
@@ -322,7 +323,7 @@ case "$1" in
 		echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- SETUP ---"
-		echo -e ${BOLD}" c) Create a clean chroot in $CHROOTPATH"${ALL_OFF}
+		echo -e ${BOLD}" c) Create a clean chroot in $CHROOTPATH64"${ALL_OFF}
 		echo -e ${BOLD}" t) Toggle [testing] on/off in the chroot"${ALL_OFF}
 		echo -e ${BOLD}" m) Toggle [multilib] on/off in the chroot"${ALL_OFF}
 		echo
@@ -331,7 +332,7 @@ case "$1" in
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
 		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
-		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH"${ALL_OFF}
+		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH64"${ALL_OFF}
 		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
 		echo -e ${BOLD}" u) Update clean chroot"${ALL_OFF}
 		;;

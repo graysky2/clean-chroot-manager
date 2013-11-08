@@ -1,0 +1,298 @@
+#!/bin/bash
+# clean-chroot-manager by graysky
+#
+# See the man page for more.
+
+VERS='@VERSION@'
+PKG='clean-chroot-manager'
+SKEL="/usr/share/$PKG/ccm.skel"
+
+# Pretty colors thanks to /usr/bin/mkarchroot
+### Begin insert of Arch script
+# Avoid any encoding problems
+export LANG=C
+
+# check if messages are to be printed using color
+unset ALL_OFF BOLD BLUE GREEN RED YELLOW
+if [[ -t 2 ]]; then
+	# prefer terminal safe colored and bold text when tput is supported
+	if tput setaf 0 &>/dev/null; then
+		ALL_OFF="$(tput sgr0)"
+		BOLD="$(tput bold)"
+		BLUE="${BOLD}$(tput setaf 4)"
+		GREEN="${BOLD}$(tput setaf 2)"
+		RED="${BOLD}$(tput setaf 1)"
+		YELLOW="${BOLD}$(tput setaf 3)"
+
+	else
+		ALL_OFF="\e[1;0m"
+		BOLD="\e[1;1m"
+		BLUE="${BOLD}\e[1;34m"
+		GREEN="${BOLD}\e[1;32m"
+		RED="${BOLD}\e[1;31m"
+		YELLOW="${BOLD}\e[1;33m"
+	fi
+fi
+readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
+
+### End insert of Arch script
+USER=$(logname)
+HOMEDIR="$(getent passwd $USER | cut -d: -f6)"
+CFGFILE=$HOMEDIR/.config/$PKG.conf
+
+# dependency checks probably not needed but they do not hurt
+command -v mkarchroot >/dev/null 2>&1 || {
+local mesg="devtools is required to use this script. Aborting."
+echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+exit 1; }
+
+check() {
+	if [[ $EUID -ne 0 ]]; then
+		local mesg="This script must be called as root!"
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+	fi
+
+	if [[ ! -f $SKEL ]]; then
+		local mesg="$SKEL is missing. Reinstall this package to continue."
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+	fi
+
+	if [[ ! -f "$CFGFILE" ]]; then
+		echo -e ${BOLD}'------------------------------------------------------------'${ALL_OFF}
+		echo -e ${BOLD}' No config file found so creating a fresh one in:'${ALL_OFF}
+		echo -e ${BOLD}${BLUE}" $HOMEDIR/.config/$PKG.conf"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" Edit this file before invoking $PKG again."${ALL_OFF}
+		echo -e ${BOLD}'------------------------------------------------------------'${ALL_OFF}
+		su -c "install -Dm644 $SKEL $CFGFILE" "$USER"
+		exit 0
+	else
+		. $CFGFILE
+
+		# parse config file for correctness
+		if [[ ! -d $CHROOTPATH32 ]]; then
+			local mesg="Invalid CHROOTPATH32 defined in $CFGFILE"
+			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+		fi
+
+		if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
+			# correctly setup
+			/bin/true
+		else
+			local mesg="Invalid setting for THREADS defined in $SKEL"
+			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+		fi
+	fi
+
+	# identify status of testing repo
+	PACFILE="$CHROOTPATH32/root/etc/pacman.conf"
+	if [[ -f "$PACFILE" ]]; then
+		if [[ $(grep '^#\[testing\]' "$PACFILE") ]]; then
+			# testing repo is not enabled
+			export TESTING="Disabled"
+		elif [[ $(grep '^\[testing\]' "$PACFILE") ]]; then
+			# testing repo is enabled
+			export TESTING="Enabled"
+		fi
+	fi
+}
+
+create() {
+	if [[ -f $CHROOTPATH32/root/.arch-chroot ]]; then
+		local mesg="Working directory $CHROOTPATH32 already exists."
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+	fi
+
+	# setup the chroot
+	setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+		-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+
+	# setup /etc/makepkg.conf in the chroot
+	if [[ -z "$PACKAGER" ]]; then
+		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH32/root/etc/makepkg.conf
+	else
+		sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
+			-i -e '/^#PACKAGER/ s,#,,' \
+			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH32/root/etc/makepkg.conf
+	fi
+
+	# enable pacman color output in chroot because I like it
+	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH32/root/etc/pacman.conf
+}
+
+check2() {
+	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
+		local mesg="Create a chroot first using the 'c' option and try again."
+		echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		exit 1
+	fi
+}
+
+build() {
+	# try to build the package
+	local mesg="Attempting to build package..."
+	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
+	if [[ -z "$RUNNAMCAP" ]]; then
+		makechrootpkg -c -u -r $CHROOTPATH32
+	else
+		makechrootpkg -c -u -n -r $CHROOTPATH32
+	fi
+
+	# stop here is build fails
+	[[ $? -gt 0 ]] && exit 1
+
+	# if this is the first time package has been successfully built
+	# then append the local repo to the chroot's pacman.conf
+	if [[ -z $(grep clean-chroot $CHROOTPATH32/root/etc/pacman.conf) ]]; then
+		# add a local repo to chroot
+		cat << EOF >> $CHROOTPATH32/root/etc/pacman.conf
+
+# Added by $PKG
+[chroot_local]
+SigLevel = Never
+Server = file:///repo
+EOF
+	fi
+
+	# setup a local repo and add adjust files in chroot
+	[[ ! -d $CHROOTPATH32/root/repo ]] && mkdir $CHROOTPATH32/root/repo
+	local mesg="Adding package to chroot repo..."
+	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	for i in *.pkg.tar.xz; do
+		cp "$i" $REPO
+		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
+
+		# insure that the chroot package matches the live pacman cache package
+		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
+		# more than once
+		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+	done
+}
+
+update() {
+	local mesg="Updating the chroot..."
+	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	arch-nspawn $CHROOTPATH32/root pacman -Syu --noconfirm
+}
+
+list() {
+	if [[ ! -f "$REPO/chroot_local.db.tar.gz" ]]; then
+		local mesg="Local repo in chroot is empty. Build something first."
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		exit 0
+	else
+		local mesg="Listing out packages in chroot repo..."
+		echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		ls -lh $REPO | grep pkg.tar
+	fi
+}
+
+testing() {
+	if [[ "$TESTING" = "Disabled" ]]; then
+		# switch on testing
+		local mesg="Enabling [testing] in chroot..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		sed -i -e '/^#\[testing\]/ s,#,,' \
+			-i -e '/^\[testing\]/{$!N; s,#,,}' $CHROOTPATH32/root/etc/pacman.conf
+		sed -i -e '/^#\[community-testing\]/ s,#,,' \
+			-i -e '/^\[community-testing\]/{$!N; s,#,,}' $CHROOTPATH32/root/etc/pacman.conf
+		local mesg="Forcing an update to use any affected packages..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH32/root pacman -Syu --noconfirm
+	elif [[ "$TESTING" = "Enabled" ]]; then
+		# switch off testing
+		local mesg="Disabling [testing] in chroot..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		sed -i -e '/^\[testing\]/ s,\[,#\[,' \
+			-i -e '/^#\[testing\]/{$!N; s,I,#I,}' $CHROOTPATH32/root/etc/pacman.conf
+		sed -i -e '/^\[community-testing\]/ s,\[,#\[,' \
+			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH32/root/etc/pacman.conf
+		local mesg="Downgrading affected packages if any..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH32/root pacman -Suu --noconfirm
+	fi
+}
+
+preview() {
+	[[ -f $CHROOTPATH32/root/.arch-chroot ]] && \
+		PRESENT="${BOLD}${GREEN}(Present)${ALL_OFF}" || \
+		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
+	echo -en ${BOLD}" chroot path:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH32 $PRESENT"${ALL_OFF}
+	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
+	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
+	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
+	echo -en ${BOLD}" [testing]:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$TESTING"${ALL_OFF}
+	[[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
+	[[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
+	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
+	echo -en ${BOLD}" makeflags:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$THREADS"${ALL_OFF}
+	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+	echo -en ${BOLD}" use namcap:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+}
+
+header() {
+	echo -e "${BOLD}$PKG v$VERS"${ALL_OFF}
+	echo
+}
+
+nuke() {
+	local mesg="Nuking the chroot..."
+	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	rm -rf $CHROOTPATH32/*
+}
+
+check
+REPO="$CHROOTPATH32/root/repo"
+
+case "$1" in
+	c)
+		create
+		;;
+	t)
+		check2 && testing
+		# no need to call update since testing function handles this
+		;;
+	l)
+		check2 && list
+		;;
+	n)
+		check2 && nuke
+		;;
+	p)
+		header && preview
+		;;
+	s)
+		if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
+			mesg="No chroot has been created so making one now..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			mesg=
+			create
+		fi
+		build
+		;;
+	u)
+		check2 && update
+		;;
+	*)
+		header
+		echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- SETUP ---"
+		echo -e ${BOLD}" c) Create a clean chroot in $CHROOTPATH32"${ALL_OFF}
+		echo -e ${BOLD}" t) Toggle [testing] on/off in the chroot"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
+		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
+		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
+		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH32"${ALL_OFF}
+		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
+		echo -e ${BOLD}" u) Update clean chroot"${ALL_OFF}
+		;;
+esac
