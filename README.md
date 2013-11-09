@@ -47,6 +47,7 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 ## Tips
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times.
 * Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the link. For example:
+
 ```
  alias ccm64='sudo ccm64'
  alias ccm32='sudo ccm32'
