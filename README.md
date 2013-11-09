@@ -52,6 +52,5 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
  alias ccm64='sudo ccm64'
  alias ccm32='sudo ccm32'
 ```
-
-#Links
+##Links
 AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
