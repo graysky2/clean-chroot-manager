@@ -237,14 +237,14 @@ multilib() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 	elif [[ "$MULTILIB" = "Enabled" ]]; then
-		# switch off testing
+		# switch off multilib
 		local mesg="Disabling [multilib] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
 			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -Suu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 	fi
 }
 
