@@ -233,18 +233,20 @@ multilib() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^#\[multilib\]/ s,#,,' \
 			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
-		local mesg="Forcing an update to use any affected packages..."
-		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
+		local mesg="You must answer yes to the following questions..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH64/root pacman -S gcc-multilib
 	elif [[ "$MULTILIB" = "Enabled" ]]; then
 		# switch off multilib
 		local mesg="Disabling [multilib] in chroot..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
 			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
-		local mesg="Downgrading affected packages if any..."
-		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
+		local mesg="You must answer yes to the following questions..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		arch-nspawn $CHROOTPATH64/root pacman -S gcc gcc-libs binutils
 	fi
 }
 
