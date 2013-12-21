@@ -222,7 +222,7 @@ testing() {
 			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -Suu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 	fi
 }
 
@@ -235,7 +235,7 @@ multilib() {
 			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Forcing an update to use any affected packages..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
 	elif [[ "$MULTILIB" = "Enabled" ]]; then
 		# switch off multilib
 		local mesg="Disabling [multilib] in chroot..."
@@ -244,7 +244,7 @@ multilib() {
 			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
 	fi
 }
 

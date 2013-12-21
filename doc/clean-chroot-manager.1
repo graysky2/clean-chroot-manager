@@ -4,10 +4,7 @@
 \fBclean-chroot-manager (ccm64 and ccm32) \fP- Wrapper scripts to manage clean chroots for building packages under Arch Linux.
 \fB
 .SH DESCRIPTION
-.TP
-.B
-Ccm provides a "one-click" solution for building packages in a clean chroot.
-A key point that differentiates ccm from the arch-build-scripts is that ccm automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo. This is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos).
+Ccm provides a "one-click" solution for building packages in a clean chroot. A key point that differentiates ccm from the arch-build-scripts is that ccm automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo. This is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos).
 .PP
 An illustrative example, let's say that we want to build "bar" from the AUR. "Bar" has a build dependency of "foo" which is also in the AUR. Rather than first building "foo", then installing "foo", then building "bar", and finally removing "foo", the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein. Pacman within the chroot is aware of the "foo" package thanks to the local repo. So, when the user tries to build "bar", pacman will silently grabs foo.pkg.tar.xz from the local repo as any other dependency.
 .SH SYNOPSIS
