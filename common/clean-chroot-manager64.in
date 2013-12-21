@@ -234,9 +234,10 @@ multilib() {
 		sed -i -e '/^#\[multilib\]/ s,#,,' \
 			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
 		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
-		local mesg="You must answer yes to the following questions..."
+		local mesg="To use the multilib version of gcc, execute the following:"
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -S gcc-multilib
+		local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc-multilib"
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 	elif [[ "$MULTILIB" = "Enabled" ]]; then
 		# switch off multilib
 		local mesg="Disabling [multilib] in chroot..."
@@ -244,9 +245,10 @@ multilib() {
 		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
 			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
-		local mesg="You must answer yes to the following questions..."
+		local mesg="Restore the native x86_64 version of gcc by executing the following:"
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -S gcc gcc-libs binutils
+		local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc gcc-libs binutils"
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 	fi
 }
 
