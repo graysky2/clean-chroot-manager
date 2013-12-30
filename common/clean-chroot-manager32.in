@@ -163,11 +163,17 @@ EOF
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
-		# insure that the chroot package matches the live pacman cache package
+		# unsure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
 	done
+
+	# The rm statement above can return 1 if the file to remove is not found,
+	# causing the function to return a non-zero error code even if everything
+	# went fine.  If we've made it to this point, the build was run
+	# successfully, so return 0 instead
+	return 0
 }
 
 update() {
