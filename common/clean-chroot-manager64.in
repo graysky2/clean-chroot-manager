@@ -173,7 +173,7 @@ EOF
 	for i in *.pkg.tar.xz; do
 
 		cp "$i" $REPO
-		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
+		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
 		# insure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
