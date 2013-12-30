@@ -163,7 +163,7 @@ EOF
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i"
 
-		# insure that the chroot package matches the live pacman cache package
+		# unsure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
