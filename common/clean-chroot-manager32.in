@@ -139,7 +139,7 @@ build() {
 		makechrootpkg -c -u -n -r $CHROOTPATH32
 	fi
 
-	# stop here is build fails
+	# stop here if build fails
 	[[ $? -gt 0 ]] && exit 1
 
 	# if this is the first time package has been successfully built
@@ -163,7 +163,7 @@ EOF
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
-		# unsure that the chroot package matches the live pacman cache package
+		# ensure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
