@@ -133,6 +133,10 @@ build() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
+    chrootcopy=$USER
+    [[ -n $SUDO_USER ]] && chrootcopy=$SUDO_USER
+    [[ -z "$chrootcopy" || $chrootcopy = root ]] && chrootcopy=copy
+
 	if [[ -z "$RUNNAMCAP" ]]; then
 		makechrootpkg -c -u -r $CHROOTPATH32
 	else
@@ -159,7 +163,16 @@ EOF
 	[[ ! -d $CHROOTPATH32/root/repo ]] && mkdir $CHROOTPATH32/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	for i in *.pkg.tar.xz; do
+    # source PKGBUILD to get package details
+    . $CHROOTPATH32/$chrootcopy/startdir/PKGBUILD
+    # save any changes in pkgver and pkgrel to PKGBUILD
+    sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
+    sed -i "s/^pkgrel=.*/pkgrel=$pkgrel/" PKGBUILD
+    # remove earlier versions of the package from repo
+    rm -f $REPO/$pkgname*.pkg.tar.xz
+    pkgpath=$(pwd) && [[ -n "$PKGDEST" ]] && pkgpath=$PKGDEST
+    pushd $pkgpath > /dev/null
+    for i in $pkgname-$pkgver-$pkgrel*.pkg.tar.xz; do
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
@@ -168,6 +181,7 @@ EOF
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
 	done
+    popd > /dev/null
 
 	# The rm statement above can return 1 if the file to remove is not found,
 	# causing the function to return a non-zero error code even if everything
