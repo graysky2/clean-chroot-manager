@@ -144,48 +144,53 @@ build() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-    chrootcopy=$USER
-    [[ -n $SUDO_USER ]] && chrootcopy=$SUDO_USER
-    [[ -z "$chrootcopy" || $chrootcopy = root ]] && chrootcopy=copy
+	workingcopy=$USER
+	[[ -n $SUDO_USER ]] && workingcopy=$SUDO_USER
+	[[ -z "$workingcopy" || $workingcopy = root ]] && workingcopy=copy
 
-	if [[ -z "$RUNNAMCAP" ]]; then
-		makechrootpkg -c -u -r $CHROOTPATH64
-	else
-		makechrootpkg -c -u -n -r $CHROOTPATH64
+	if [[ "$1" != "noclean" ]];then
+		option="-c"
 	fi
 
-	# stop here if build fails
-	[[ $? -gt 0 ]] && exit 1
+	if [[ ! -z "$RUNNAMCAP" ]]; then
+		option="$option -n"
+	fi
+
+	makechrootpkg $option -u -r $CHROOTPATH64 || exit 1     # stop here if build fails
 
 	# if this is the first time package has been successfully built
 	# then append the local repo to the chroot's pacman.conf
 	if [[ -z $(grep clean-chroot $CHROOTPATH64/root/etc/pacman.conf) ]]; then
-		# add a local repo to chroot
-		cat << EOF >> $CHROOTPATH64/root/etc/pacman.conf
+		# add a local repo to chroot, both in root and working copy
+		for cuser in root $workingcopy;do
+			cat << EOF >> $CHROOTPATH64/$cuser/etc/pacman.conf
 
 # Added by $PKG
 [chroot_local]
 SigLevel = Never
 Server = file:///repo
 EOF
+		done
 	fi
 
-	# setup a local repo and add adjust files in chroot
-	[[ ! -d $CHROOTPATH64/root/repo ]] && mkdir $CHROOTPATH64/root/repo
-	local mesg="Adding package to chroot repo..."
-	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 	# source PKGBUILD to get package details
-	. $CHROOTPATH64/$chrootcopy/startdir/PKGBUILD
+	. $CHROOTPATH64/$workingcopy/startdir/PKGBUILD
 	# save any changes in pkgver and pkgrel to PKGBUILD
 	sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
 	sed -i "s/^pkgrel=.*/pkgrel=$pkgrel/" PKGBUILD
+
+	# setup a local repo and add adjust files in chroot, both in root and working copy
+	[[ ! -d $CHROOTPATH64/root/repo ]] && mkdir $CHROOTPATH64/{root,$workingcopy}/repo
+	local mesg="Adding package to chroot repo..."
+	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	WORKINGCOPYPATH=$CHROOTPATH64/$workingcopy/repo
 	# remove earlier versions of the package from repo
-	rm -f $REPO/$pkgname*.pkg.tar.xz
+	rm -f {$REPO,$WORKINGCOPYPATH}/$pkgname*.pkg.tar.xz
 	pkgpath=$(pwd) && [[ -n "$PKGDEST" ]] && pkgpath=$PKGDEST
 	pushd $pkgpath > /dev/null
 	for i in $pkgname*-$pkgver-$pkgrel*.pkg.tar.xz; do
-		cp "$i" $REPO
-		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
+		cp "$i" $REPO && repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
+		cp "$i" $WORKINGCOPYPATH && repo-add $WORKINGCOPYPATH/chroot_local.db.tar.gz $WORKINGCOPYPATH/"$i" > /dev/null || exit 1
 
 		# ensure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
@@ -336,7 +341,7 @@ case "$1" in
 			mesg=
 			create
 		fi
-			build
+		build $2
 		;;
 	u)
 		check2 && update
@@ -352,6 +357,7 @@ case "$1" in
 		echo
 		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
 		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
+		echo -e ${BOLD}" s noclean) Run makepkg in chroot, without cleaning it first"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
 		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
