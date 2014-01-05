@@ -311,7 +311,7 @@ case "$1" in
 		check2 && list
 		;;
 	n)
-		check2 && nuke
+		nuke
 		;;
 	p)
 		header && preview
