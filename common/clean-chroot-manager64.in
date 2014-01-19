@@ -178,11 +178,9 @@ EOF
 		done
 	fi
 
-	pushd $WORKINGPATH/startdir > /dev/null
-
-	# source PKGBUILD to get package details
-	. PKGBUILD
-	# save any changes in pkgver and pkgrel to PKGBUILD
+	# source chroot PKGBUILD to get package details
+	. $WORKINGPATH/startdir/PKGBUILD
+	# save any changes in pkgver and pkgrel to user PKGBUILD
 	sed -i "s/^pkgver=.*/pkgver=$pkgver/" PKGBUILD
 	sed -i "s/^pkgrel=.*/pkgrel=$pkgrel/" PKGBUILD
 
@@ -193,6 +191,7 @@ EOF
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	pkgpath=$(pwd) && [[ -n "$PKGDEST" ]] && pkgpath=$PKGDEST
+	pushd $WORKINGPATH/startdir > /dev/null
 	for i in *.pkg.tar.xz; do
 		cp "$pkgpath/$i" $REPO && repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 		cp "$pkgpath/$i" $WORKINGPATH/repo && repo-add $WORKINGPATH/repo/chroot_local.db.tar.gz $WORKINGPATH/repo/"$i" > /dev/null || exit 1
@@ -202,7 +201,6 @@ EOF
 		# more than once
 		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
 	done
-
 	popd > /dev/null
 
 	# The rm statement above can return 1 if the file to remove is not found,
