@@ -36,7 +36,7 @@ fi
 readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 
 ### End insert of Arch script
-USER=$(logname)
+USER=$(id -u -n)
 HOMEDIR="$(getent passwd $USER | cut -d: -f6)"
 CFGFILE=$HOMEDIR/.config/$PKG.conf
 
