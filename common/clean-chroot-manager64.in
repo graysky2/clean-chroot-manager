@@ -36,6 +36,15 @@ fi
 readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 
 ### End insert of Arch script
+
+# temp check for user to be replaced once the bug with logname and some
+# setups is fixed
+logname &>/dev/null
+if [[ $? -ne 0 ]]; then
+	local mesg="Cannot determine your username so exiting."
+	echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+fi
+
 USER=$(logname)
 HOMEDIR="$(getent passwd $USER | cut -d: -f6)"
 CFGFILE=$HOMEDIR/.config/$PKG.conf
