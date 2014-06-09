@@ -136,6 +136,11 @@ create() {
 			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH64/root/etc/makepkg.conf
 	fi
 
+	if [[ -n "$CFLAGS" ]]; then
+		sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
+			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH64/root/etc/makepkg.conf
+	fi
+
 	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH64/root/etc/pacman.conf
 }
