@@ -226,7 +226,7 @@ testing() {
 			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH32/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH32/root pacman -Suu --noconfirm
+		arch-nspawn $CHROOTPATH32/root pacman -Syuu --noconfirm
 	fi
 }
 

@@ -237,7 +237,7 @@ testing() {
 			-i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
 		local mesg="Downgrading affected packages if any..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syuu --noconfirm
 	fi
 }
 
@@ -248,7 +248,7 @@ multilib() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^#\[multilib\]/ s,#,,' \
 			-i -e '/^\[multilib\]/{$!N; s,#,,}' $CHROOTPATH64/root/etc/pacman.conf
-		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 		local mesg="To use the multilib version of gcc, execute the following:"
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc-multilib"
@@ -259,7 +259,7 @@ multilib() {
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
 			-i -e '/^#\[multilib\]/{$!N; s,I,#I,}' $CHROOTPATH64/root/etc/pacman.conf
-		arch-nspawn $CHROOTPATH64/root pacman -Syyu --noconfirm
+		arch-nspawn $CHROOTPATH64/root pacman -Syu --noconfirm
 		local mesg="Restore the native x86_64 version of gcc by executing the following:"
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc gcc-libs binutils"
