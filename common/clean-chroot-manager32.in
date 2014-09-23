@@ -41,8 +41,8 @@ readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 # setups is fixed
 logname &>/dev/null
 if [[ $? -ne 0 ]]; then
-  local mesg="Cannot determine your username so exiting."
-  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+	local mesg="Cannot determine your username so exiting."
+	echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 fi
 
 USER=$(logname)
@@ -124,11 +124,11 @@ create() {
 			-i -e '/^#PACKAGER/ s,#,,' \
 			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH32/root/etc/makepkg.conf
 	fi
-	
+
 	if [[ -n "$CFLAGS" ]]; then
 		sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
 			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH64/root/etc/makepkg.conf
-  fi
+	fi
 
 	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH32/root/etc/pacman.conf
@@ -159,10 +159,10 @@ build() {
 	# if this is the first time package has been successfully built
 	# then append the local repo to the chroot's pacman.conf
 	if [[ -z $(grep clean-chroot $CHROOTPATH32/root/etc/pacman.conf) ]]; then
-    # add a local repo to chroot
-    sed -i '/\[testing\]/i \
+		# add a local repo to chroot
+		sed -i '/\[testing\]/i \
 # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
-      $CHROOTPATH32/root/etc/pacman.conf
+			$CHROOTPATH32/root/etc/pacman.conf
 	fi
 
 	# setup a local repo and add adjust files in chroot
