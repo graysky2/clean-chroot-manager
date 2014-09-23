@@ -159,14 +159,10 @@ build() {
 	# if this is the first time package has been successfully built
 	# then append the local repo to the chroot's pacman.conf
 	if [[ -z $(grep clean-chroot $CHROOTPATH32/root/etc/pacman.conf) ]]; then
-		# add a local repo to chroot
-		cat << EOF >> $CHROOTPATH32/root/etc/pacman.conf
-
-# Added by $PKG
-[chroot_local]
-SigLevel = Never
-Server = file:///repo
-EOF
+    # add a local repo to chroot
+    sed -i '/\[testing\]/i \
+# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+      $CHROOTPATH32/root/etc/pacman.conf
 	fi
 
 	# setup a local repo and add adjust files in chroot
