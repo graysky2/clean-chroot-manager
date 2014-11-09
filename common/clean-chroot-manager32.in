@@ -41,7 +41,7 @@ readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 # setups is fixed
 logname &>/dev/null
 if [[ $? -ne 0 ]]; then
-	local mesg="Cannot determine your username so exiting."
+	mesg="Cannot determine your username so exiting."
 	echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 fi
 
@@ -51,7 +51,7 @@ CFGFILE=$HOMEDIR/.config/$PKG.conf
 
 # dependency checks probably not needed but they do not hurt
 command -v mkarchroot >/dev/null 2>&1 || {
-local mesg="devtools is required to use this script. Aborting."
+mesg="devtools is required to use this script. Aborting."
 echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 exit 1; }
 
@@ -127,11 +127,14 @@ create() {
 
 	if [[ -n "$CFLAGS" ]]; then
 		sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
-			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH64/root/etc/makepkg.conf
+			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH32/root/etc/makepkg.conf
 	fi
 
 	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH32/root/etc/pacman.conf
+	
+	# do the same for gcc errors
+	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH32/root/etc/makepkg.conf
 }
 
 check2() {
