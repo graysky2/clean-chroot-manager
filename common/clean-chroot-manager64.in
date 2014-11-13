@@ -169,7 +169,24 @@ build() {
 
 	# stop here if build fails
 	[[ $? -gt 0 ]] && exit 1
+}
 
+buildnc() {
+	# try to build the package
+	local mesg="Attempting to build package..."
+	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
+	if [[ -z "$RUNNAMCAP" ]]; then
+		makechrootpkg -u -r $CHROOTPATH64
+	else
+		makechrootpkg -u -n -r $CHROOTPATH64
+	fi
+
+	# stop here if build fails
+	[[ $? -gt 0 ]] && exit 1
+}
+
+indexit() {
 	# if this is the first time package has been successfully built
 	# then append the local repo to the chroot's pacman.conf
 	if [[ -z $(grep clean-chroot $CHROOTPATH64/root/etc/pacman.conf) ]]; then
@@ -335,7 +352,16 @@ case "$1" in
 			mesg=
 			create
 		fi
-		build
+		build && indexit
+		;;
+	S)
+		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
+			mesg="No chroot has been created so making one now..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			mesg=
+			create
+		fi
+		buildnc && indexit
 		;;
 	u)
 		check2 && update
@@ -351,6 +377,7 @@ case "$1" in
 		echo
 		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
 		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
+		echo -e ${BOLD}" S) Run makepkg in clean chroot but do not clean the chroot before building"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
 		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
