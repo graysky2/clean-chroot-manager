@@ -168,7 +168,7 @@ build() {
 	fi
 
 	# stop here if build fails
-	[[ $? -gt 0 ]] && exit 1
+	[[ $? -eq 0 ]] || exit 1
 }
 
 buildnc() {
@@ -183,7 +183,7 @@ buildnc() {
 	fi
 
 	# stop here if build fails
-	[[ $? -gt 0 ]] && exit 1
+	[[ $? -eq 0 ]] || exit 1
 }
 
 indexit() {
