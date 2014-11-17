@@ -212,16 +212,24 @@ update() {
 	arch-nspawn $CHROOTPATH32/root pacman -Syu --noconfirm
 }
 
-list() {
+repocheck() {
 	if [[ ! -f "$REPO/chroot_local.db.tar.gz" ]]; then
 		local mesg="Local repo in chroot is empty. Build something first."
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		exit 0
-	else
-		local mesg="Listing out packages in chroot repo..."
-		echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		ls -lh $REPO | grep pkg.tar
+		exit 1
 	fi
+}
+
+list() {
+	local mesg="Listing out packages in chroot repo..."
+	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	ls -lh $REPO | grep pkg.tar
+}
+
+delete() {
+	local mesg="Deleting all packages and index in chroot repo..."
+	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+	rm -rf $REPO
 }
 
 testing() {
@@ -293,8 +301,15 @@ case "$1" in
 		check2 && testing
 		# no need to call update since testing function handles this
 		;;
+	m)
+		check2 && multilib
+		# no need to call update since multilib function handles this
+		;;
+	d)
+		check2 && repocheck && delete
+		;;
 	l)
-		check2 && list
+		check2 && repocheck && list
 		;;
 	n)
 		nuke
@@ -335,10 +350,13 @@ case "$1" in
 		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
 		echo -e ${BOLD}" S) Run makepkg in clean chroot but do not clean the chroot before building"${ALL_OFF}
 		echo
-		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
+		echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
 		echo -e ${BOLD}" l) List local repo in chroot (packages you built)"${ALL_OFF}
-		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH32"${ALL_OFF}
-		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
+		echo -e ${BOLD}" d) Delete any packages in the local repo ${BLUE}$CHROOTPATH32"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- MISCELLANEOUS ---"
 		echo -e ${BOLD}" u) Update clean chroot"${ALL_OFF}
+		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
+		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH32"${ALL_OFF}
 		;;
 esac
