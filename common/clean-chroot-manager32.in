@@ -336,7 +336,7 @@ case "$1" in
 		echo -e ${BOLD}" S) Run makepkg in clean chroot but do not clean the chroot before building"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"${ALL_OFF}
-		echo -e ${BOLD}" l) List local repo in chroot (packages you build)"${ALL_OFF}
+		echo -e ${BOLD}" l) List local repo in chroot (packages you built)"${ALL_OFF}
 		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH32"${ALL_OFF}
 		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
 		echo -e ${BOLD}" u) Update clean chroot"${ALL_OFF}
