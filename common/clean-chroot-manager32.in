@@ -235,7 +235,12 @@ list() {
 delete() {
 	local mesg="Deleting all packages and index in chroot repo..."
 	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	rm -rf $REPO
+
+	# remove all files from the repo including pacakges and databases
+	rm -rf $REPO/*
+
+	# modify pacman.conf so we don't error out due to missing databases
+	sed -i '/Added by clean/,+4d' $CHROOTPATH32/root/etc/pacman.conf
 }
 
 testing() {
