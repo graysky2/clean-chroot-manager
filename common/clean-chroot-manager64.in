@@ -391,22 +391,24 @@ case "$1" in
 		header
 		echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
 		echo
-		echo -e ${BOLD}" --- SETUP ---"
-		echo -e ${BOLD}" c) Create a clean chroot in $CHROOTPATH64"${ALL_OFF}
-		echo -e ${BOLD}" t) Toggle [testing] on/off in the chroot"${ALL_OFF}
-		echo -e ${BOLD}" m) Toggle [multilib] on/off in the chroot"${ALL_OFF}
+		echo -e ${BOLD}" --- SETUP AND BREAKDOWN  ---"
+		echo -e ${BOLD}" Target: ${BLUE}$CHROOTPATH64"${ALL_OFF}
+		echo -e ${BOLD}"   c) Create the clean chroot"${LL_OFF}
+		echo -e ${BOLD}"   n) Nuke the clean chroot"${ALL_OFF}
+		echo -e ${BOLD}"   t) Toggle [testing] on/off"${ALL_OFF}
+		echo -e ${BOLD}"   m) Toggle [multilib] on/off"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
-		echo -e ${BOLD}" s) Run makepkg in clean chroot"${ALL_OFF}
-		echo -e ${BOLD}" S) Run makepkg in clean chroot but do not clean the chroot before building"${ALL_OFF}
+		echo -e ${BOLD}"   s) Run makepkg in clean chroot (default)"${ALL_OFF}
+		echo -e ${BOLD}"   S) Run makepkg in clean chroot but do not clean first"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
-		echo -e ${BOLD}" l) List local repo in chroot (packages you built)"${ALL_OFF}
-		echo -e ${BOLD}" d) Delete any packages in the local repo ${BLUE}$CHROOTPATH64"${ALL_OFF}
+		echo -e ${BOLD}" Local repo: ${BLUE}$REPO"${ALL_OFF}
+		echo -e ${BOLD}"   l) List packages in local repo"${ALL_OFF}
+		echo -e ${BOLD}"   d) Delete all packages in the local repo"${ALL_OFF}
 		echo
 		echo -e ${BOLD}" --- MISCELLANEOUS ---"
-		echo -e ${BOLD}" u) Update clean chroot"${ALL_OFF}
-		echo -e ${BOLD}" p) Preview settings"${ALL_OFF}
-		echo -e ${BOLD}" n) Nuke the entire dirtree under ${BLUE}$CHROOTPATH64"${ALL_OFF}
+		echo -e ${BOLD}"   u) Update clean chroot"${ALL_OFF}
+		echo -e ${BOLD}"   p) Preview settings"${ALL_OFF}
 		;;
 esac
