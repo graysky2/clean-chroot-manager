@@ -14,7 +14,7 @@ An illustrative example: we want to build 'bar' from the AUR.  'Bar' has a build
 | t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -src` in the chroot. |
-| S | Run makepkg in build mode under the chroot without first cleaning it. Useful when building similar packages with many of the same deps. The equivalent of `makepkg -src` in the chroot. |
+| S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | d | Delete all packages in the local repo without nuking the entire chroot (i.e. the packages you built to date). |
 | u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
