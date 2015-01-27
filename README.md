@@ -47,8 +47,16 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 ```
 
 ## Tips
-* If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times.
-* Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the link. For example:
+* If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
+`tmpfs /scratch tmpfs nodev,size=10G 0 0`
+
+In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories created, we can use a systemd tmpfile like so:
+```
+/etc/tmpfiles.d/ccm_dirs.conf
+d /scratch/.chroot64 0755 facade users -
+d /scratch/.chroot32 0755 facade users -
+```
+* Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the like. For example:
 
 ```
  alias ccm64='sudo ccm64'
