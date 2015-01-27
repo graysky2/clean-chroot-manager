@@ -48,6 +48,7 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 
 ## Tips
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
+
 `tmpfs /scratch tmpfs nodev,size=10G 0 0`
 
 In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories created, we can use a systemd tmpfile like so:
