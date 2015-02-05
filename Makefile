@@ -25,8 +25,8 @@ install-bin:
 	ln -s $(PN)64 "$(DESTDIR)$(BINDIR)/ccm64"
 	ln -s $(PN)32 "$(DESTDIR)$(BINDIR)/ccm32"
 	install -Dm644 common/ccm.skel "$(DESTDIR)$(SKELDIR)/ccm.skel"
-	$(INSTALL_DIR) "$(DESTDIR)$(ZSHDIR)"
-	$(INSTALL_PROGRAM) common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
+	install -d "$(DESTDIR)$(ZSHDIR)"
+	install -m644  common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 install-man:
 	$(Q)echo -e '\033[1;32mInstalling manpage...\033[0m'
@@ -40,7 +40,7 @@ uninstall:
 	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/$(PN)"
 	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/$(PN).1.gz"
 	$(Q)$(RM) -rf "$(DESTDIR)$(SKELDIR)"
-	$(INSTALL_PROGRAM) common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
+	$(Q)$(RM) "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 clean:
 	$(RM) -f common/$(PN)64
