@@ -47,7 +47,7 @@ uninstall:
 	$(Q)$(RM) "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 clean:
-	$(RM) -f common/$(PN)64
-	$(RM) -f common/$(PN)32
+	$(RM) common/$(PN)64
+	$(RM) common/$(PN)32
 
 .PHONY: help install-bin install-man install uninstall clean
