@@ -7,7 +7,7 @@ DOCDIR = $(PREFIX)/share/doc/$(PN)-$(VERSION)
 MANDIR = $(PREFIX)/share/man/man1
 SKELDIR = $(PREFIX)/share/$(PN)
 ZSHDIR = $(PREFIX)/share/zsh/site-functions
-RM = rm
+RM = rm -f
 Q = @
 
 all:
@@ -37,9 +37,13 @@ install-man:
 install: install-bin install-man
 
 uninstall:
-	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/$(PN)"
+	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/$(PN)64"
+	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/$(PN)32"
+	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm64"
+	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm32"
+	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm"
 	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/$(PN).1.gz"
-	$(Q)$(RM) -rf "$(DESTDIR)$(SKELDIR)"
+	$(Q)$(RM) -r "$(DESTDIR)$(SKELDIR)"
 	$(Q)$(RM) "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 clean:
