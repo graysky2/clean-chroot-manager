@@ -1,0 +1,20 @@
+#compdef clean-chroot-manager clean-chroot-manager32 clean-chroot-manager64 ccm ccm32 ccm64
+
+_ccm() {
+  local -a options
+
+  options=('c:create the clean chroot'
+           'n:nuke the clean chroot'
+           't:toggle [testing] on or off'
+           'm:toggle [multilib] on or off'
+           's:run makepkg in the clean chroot'
+           'S:run makepkg in the clean chroot but do not clean first'
+           'l:list packages in the local repo'
+           'd:delete all packages in the local repo'
+           'u:update the clean chroot manually'
+           'p:preview settings')
+
+  _describe 'options' options
+}
+
+_ccm

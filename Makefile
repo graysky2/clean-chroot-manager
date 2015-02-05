@@ -1,4 +1,4 @@
-VERSION = 2.64
+VERSION = 2.65
 PN = clean-chroot-manager
 
 PREFIX ?= /usr
@@ -6,6 +6,7 @@ BINDIR = $(PREFIX)/bin
 DOCDIR = $(PREFIX)/share/doc/$(PN)-$(VERSION)
 MANDIR = $(PREFIX)/share/man/man1
 SKELDIR = $(PREFIX)/share/$(PN)
+ZSHDIR = $(PREFIX)/share/zsh/site-functions
 RM = rm
 Q = @
 
@@ -24,6 +25,8 @@ install-bin:
 	ln -s $(PN)64 "$(DESTDIR)$(BINDIR)/ccm64"
 	ln -s $(PN)32 "$(DESTDIR)$(BINDIR)/ccm32"
 	install -Dm644 common/ccm.skel "$(DESTDIR)$(SKELDIR)/ccm.skel"
+	$(INSTALL_DIR) "$(DESTDIR)$(ZSHDIR)"
+	$(INSTALL_PROGRAM) common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 install-man:
 	$(Q)echo -e '\033[1;32mInstalling manpage...\033[0m'
@@ -37,3 +40,10 @@ uninstall:
 	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/$(PN)"
 	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/$(PN).1.gz"
 	$(Q)$(RM) -rf "$(DESTDIR)$(SKELDIR)"
+	$(INSTALL_PROGRAM) common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
+
+clean:
+	$(RM) -f common/$(PN)64
+	$(RM) -f common/$(PN)32
+
+.PHONY: help install-bin install-man install uninstall clean
