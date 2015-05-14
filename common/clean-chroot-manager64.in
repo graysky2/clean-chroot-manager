@@ -77,6 +77,10 @@ check() {
 		echo -e ${BOLD}" Edit this file before invoking $PKG again."${ALL_OFF}
 		echo -e ${BOLD}'------------------------------------------------------------'${ALL_OFF}
 		su -c "install -Dm644 $SKEL $CFGFILE" "$USER"
+		# guess how many threads based on invocation on this particular machine
+		CORES=$(grep -c processor /proc/cpuinfo)
+		CORES=$(( $CORES + 1 ))
+		sed -i "/^THREADS=/ s,9,$CORES," $HOMEDIR/.config/$PKG.conf
 		exit 0
 	else
 		. $CFGFILE
