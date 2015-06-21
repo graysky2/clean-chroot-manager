@@ -134,7 +134,7 @@ create() {
 	fi
 
 	# setup the chroot
-	mkarchroot $CHROOTPATH64/root base-devel
+	mkarchroot $CHROOTPATH64/root base-devel || exit 1
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then
@@ -344,7 +344,18 @@ header() {
 nuke() {
 	local mesg="Nuking the chroot..."
 	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	rm -rf $CHROOTPATH64/*
+	if [ -z "$CHROOTPATH64" ]; then
+	    echo "CHROOTPATH64 is not set: not deleting anything"
+	    exit 1
+	fi
+	if [[ -x /usr/bin/btrfs ]] && btrfs subvolume show $CHROOTPATH64/root; then
+	    # this redirect doesn't work for me, don't know why
+	    btrfs subvolume delete $CHROOTPATH64/root &> /dev/null
+	    # can't seem to suppress the error "zsh: no matches found:"
+	    rm -rf $CHROOTPATH64/* &> /dev/null
+	else
+	    rm -rf $CHROOTPATH64/*
+	fi
 }
 
 check
