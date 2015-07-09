@@ -160,9 +160,9 @@ build() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		makechrootpkg -c -u -r $CHROOTPATH32
+		nice -19 makechrootpkg -c -u -r $CHROOTPATH32
 	else
-		makechrootpkg -c -u -n -r $CHROOTPATH32
+		nice -19 makechrootpkg -c -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -175,9 +175,9 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		makechrootpkg -u -r $CHROOTPATH32
+		nice -19 makechrootpkg -u -r $CHROOTPATH32
 	else
-		makechrootpkg -u -n -r $CHROOTPATH32
+		nice -19 makechrootpkg -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
