@@ -334,6 +334,16 @@ preview() {
 		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
 	echo -en ${BOLD}" chroot path:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH64 $PRESENT"${ALL_OFF}
+	echo
+	echo -en ${BOLD}" makeflags:"
+	echo -e "$(tput cr)$(tput cuf 14)${BOLD}$THREADS"${ALL_OFF}
+	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+	echo -en ${BOLD}" use namcap:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	[[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+	echo -en ${BOLD}" use distcc:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	echo
 	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
@@ -344,11 +354,6 @@ preview() {
 	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [multilib]:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$MULTILIB"${ALL_OFF}
-	echo -en ${BOLD}" makeflags:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$THREADS"${ALL_OFF}
-	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-	echo -en ${BOLD}" use namcap:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
 }
 
 header() {
