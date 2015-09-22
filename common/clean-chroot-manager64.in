@@ -170,6 +170,14 @@ create() {
 
 	# do the same for gcc errors
 	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH64/root/etc/makepkg.conf
+
+	# since /usr/bin/makechrootpkg provided by devtools will overwright the
+	# MAKEFLAGS upon the user invoking it, we simply create a copy of this
+	# script removing the offending lines and defaulting to the MAKEFLAGS
+	# the ccm user defined in the config file
+
+	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
+	chmod +x $CHROOTPATH64/root/makechrootpkg-mod
 }
 
 check2() {
@@ -186,9 +194,9 @@ build() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 makechrootpkg -c -u -r $CHROOTPATH64
+		nice -19 $CHROOTPATH64/root/makechrootpkg-mod -c -u -r $CHROOTPATH64
 	else
-		nice -19 makechrootpkg -c -u -n -r $CHROOTPATH64
+		nice -19 $CHROOTPATH64/root/makechrootpkg-mod -c -u -n -r $CHROOTPATH64
 	fi
 
 	# stop here if build fails
@@ -201,9 +209,9 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 makechrootpkg -u -r $CHROOTPATH64
+		nice -19 $CHROOTPATH64/root/makechrootpkg-mod -u -r $CHROOTPATH64
 	else
-		nice -19 makechrootpkg -u -n -r $CHROOTPATH64
+		nice -19 $CHROOTPATH64/root/makechrootpkg-mod -u -n -r $CHROOTPATH64
 	fi
 
 	# stop here if build fails
