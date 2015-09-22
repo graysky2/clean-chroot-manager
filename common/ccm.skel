@@ -10,8 +10,10 @@ CHROOTPATH64=/scratch/chroot64
 CHROOTPATH32=/scratch/chroot32
 
 # Number of threads makepkg in the clean chroot will use when building
-# Note that the official Arch package defaults to 2
-THREADS=9
+# Take care to also include any distcc slaves you define below when
+# setting this. The typical rule is physical cores + 1. Note that the
+# official Arch package defaults to 2.
+THREADS=21
 
 # If set, the value defined will be used in the chroot's /etc/makepkg.conf
 # setting for PACKAGER which will be auto uncommented
@@ -34,3 +36,14 @@ CFLAGS=""
 # Set this variable to anything if you want to run namcap on the built package
 # Leave it empty (default) if you do not want to run namcap
 RUNNAMCAP=
+
+# Set this to anything if you want makepkg to build through distcc for faster
+# compilation. You must have distcc installed and properly configured on your
+# native environment (not within the chroot) as well as on each of the slaves
+# you define below. For more on distcc, see the wiki:
+# https://wiki.archlinux.org/index.php/Distcc
+RUNDISTCC=
+
+# Define all machines in the distcc cluster below using the standard syntax of
+# hostname/threads
+DISTCC_HOSTS="localhost/9 foo/8 bar/4"

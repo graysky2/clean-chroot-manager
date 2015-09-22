@@ -90,7 +90,7 @@ check() {
 			local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 		fi
-		
+
 		REPO="$CHROOTPATH64/root/repo"
 
 		if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -133,8 +133,13 @@ create() {
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 	fi
 
-	# setup the chroot
-	mkarchroot $CHROOTPATH64/root base-devel
+	if [[ -n "$RUNDISTCC" ]]; then
+		# note that makepkg will check for the distcc bin so just install
+		# the package rather than modifying makepkg within the chroot
+		mkarchroot $CHROOTPATH64/root base-devel distcc
+	else
+		mkarchroot $CHROOTPATH64/root base-devel
+	fi
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then
@@ -145,6 +150,16 @@ create() {
 			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH64/root/etc/makepkg.conf
 	fi
 
+	if [[ -n "$RUNDISTCC" ]]; then
+		sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+			-i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+			-i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH64/root/etc/makepkg.conf
+
+		# also may need /etc/hosts from the native environment if the user defined
+		# distcc slaves by hostname rather than by ip addy
+		[[ -f /etc/hosts ]] && cp /etc/hosts $CHROOTPATH64/root/etc
+	fi
+
 	if [[ -n "$CFLAGS" ]]; then
 		sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
 			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH64/root/etc/makepkg.conf
@@ -152,7 +167,7 @@ create() {
 
 	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH64/root/etc/pacman.conf
-	
+
 	# do the same for gcc errors
 	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH64/root/etc/makepkg.conf
 }
@@ -201,7 +216,7 @@ indexit() {
 	if [[ -z $(grep clean-chroot $CHROOTPATH64/root/etc/pacman.conf) ]]; then
 		# add a local repo to chroot
 		sed -i '/\[testing\]/i \
-# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+			# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
 			$CHROOTPATH64/root/etc/pacman.conf
 	fi
 
@@ -374,6 +389,14 @@ case "$1" in
 		header && preview
 		;;
 	s)
+		if [[ -n "$RUNDISTCC" ]]; then
+			systemctl is-active distccd &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
+				echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+				exit 1
+			fi
+		fi
 		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
