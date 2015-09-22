@@ -1,8 +1,12 @@
 # clean-chroot-manager
 Wrapper scripts to manage clean chroots (x86_64 and i686) for building packages under Arch Linux.
 
-## Description
-Ccm provides a "one-click" solution for building packages in a clean chroot. A key point that differentiates ccm from the arch-build-scripts is that ccm automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo. This is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos). Another key point of differentiation is that ccm can build packages using distcc.
+## Why use it?
+Ccm provides several advantages over the standar arch-build scripts:
+* Automatically setups and uses distcc to speed up compilation (if enabled).
+* Automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo.
+
+Managing a local repo is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos). Another key point of differentiation is that ccm can build packages using distcc.
 
 An illustrative example, let's say that we want to build "bar" from the AUR. "Bar" has a build dependency of "foo" which is also in the AUR. Rather than first building "foo", then installing "foo", then building "bar", and finally removing "foo", the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein. Pacman within the chroot is aware of the "foo" package thanks to the local repo. So, when the user tries to build "bar", pacman will silently grabs foo.pkg.tar.xz from the local repo as any other dependency
 
