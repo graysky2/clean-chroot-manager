@@ -2,9 +2,12 @@
 Wrapper scripts to manage clean chroots (x86_64 and i686) for building packages under Arch Linux.
 
 ## Description
-Use these scripts as a "one-click" solution for building packages in a clean chroot.  A key point that differentiates ccm from the arch-build-scripts is that ccm automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo.  This is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos).
+Ccm provides a "one-click" solution for building packages in a clean chroot. A key point that differentiates ccm from the arch-build-scripts is that ccm automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo. This is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos). Another key point of differentiation is that ccm can build packages using distcc.
 
-An illustrative example: we want to build 'bar' from the AUR.  'Bar' has a build dependency of 'foo' which is also in the AUR.  Rather than first building 'foo', then installing 'foo', then building 'bar', and finally removing 'foo', the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein.  Pacman within the chroot is aware of that fact via the local repo; when users go to build 'bar', pacman will silently grab foo.pkg.tar.xz from the local repo just as if it were present in any of the official repos. This allows a one-step build of 'bar' without interruption to the user.
+An illustrative example, let's say that we want to build "bar" from the AUR. "Bar" has a build dependency of "foo" which is also in the AUR. Rather than first building "foo", then installing "foo", then building "bar", and finally removing "foo", the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein. Pacman within the chroot is aware of the "foo" package thanks to the local repo. So, when the user tries to build "bar", pacman will silently grabs foo.pkg.tar.xz from the local repo as any other dependency
+
+## Setup
+$XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocation of ccm and contains all user managed settings. Edit this file prior to running ccm a second time. Make sure the user running ccm has sudo rights to execute /usr/bin/clean-chroot-manager or /usr/bin/ccm.
 
 ## Options
 | Command | Description |
@@ -47,6 +50,13 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 ```
 
 ## Tips
+* Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the like. For example:
+
+```
+ alias ccm64='sudo ccm64'
+ alias ccm32='sudo ccm32'
+```
+* If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See $XDG_CONFIG_HOME/clean-chroot-manager.conf for setup instructions.
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
 
 `tmpfs /scratch tmpfs nodev,size=10G 0 0`
@@ -56,12 +66,6 @@ In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories crea
 /etc/tmpfiles.d/ccm_dirs.conf
 d /scratch/.chroot64 0755 facade users -
 d /scratch/.chroot32 0755 facade users -
-```
-* Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the like. For example:
-
-```
- alias ccm64='sudo ccm64'
- alias ccm32='sudo ccm32'
 ```
 ##Links
 AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
