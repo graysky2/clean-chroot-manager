@@ -134,10 +134,23 @@ create() {
 	fi
 
 	if [[ -n "$RUNDISTCC" ]]; then
-		# note that makepkg will check for the distcc bin so just install
-		# the package rather than modifying makepkg within the chroot
-		mkarchroot $CHROOTPATH64/root base-devel distcc
+		# first check that the chroot matches that of the native environment
+		# since I am unclear how to handle a cross-compiling scenario using
+		# distcc on the native environment and makepkg within the chroot.
+
+		if [[ $(uname -m) = "x86_64" ]]; then
+			# note that makepkg will check for the distcc bin so just install
+			# the package rather than modifying makepkg within the chroot
+			mkarchroot $CHROOTPATH64/root base-devel distcc
+		else
+			local mesg="Distcc build disabled! cannot use distcc x86_64 to build an i686 package!"
+			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			DISTCCFAIL=1
+			sleep 3s
+			mkarchroot $CHROOTPATH64/root base-devel
+		fi
 	else
+		# not asking to use distcc so proceed with normal schroot
 		mkarchroot $CHROOTPATH64/root base-devel
 	fi
 
@@ -151,13 +164,15 @@ create() {
 	fi
 
 	if [[ -n "$RUNDISTCC" ]]; then
-		sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-			-i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
-			-i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH64/root/etc/makepkg.conf
+		if [[ $DISTCCFAIL -ne 1 ]]; then
+			sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+				-i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+				-i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH64/root/etc/makepkg.conf
 
-		# also may need /etc/hosts from the native environment if the user defined
-		# distcc slaves by hostname rather than by ip addy
-		[[ -f /etc/hosts ]] && cp /etc/hosts $CHROOTPATH64/root/etc
+			# also may need /etc/hosts from the native environment if the user defined
+			# distcc slaves by hostname rather than by ip addy
+			[[ -f /etc/hosts ]] && cp /etc/hosts $CHROOTPATH64/root/etc
+		fi
 	fi
 
 	if [[ -n "$CFLAGS" ]]; then
@@ -420,11 +435,13 @@ case "$1" in
 		;;
 	s)
 		if [[ -n "$RUNDISTCC" ]]; then
-			systemctl is-active distccd &>/dev/null
-			if [[ $? -ne 0 ]]; then
-				mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
-				echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-				exit 1
+			if [[ $DISTCCFAIL -ne 1 ]]; then
+				systemctl is-active distccd &>/dev/null
+				if [[ $? -ne 0 ]]; then
+					mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
+					echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+					exit 1
+				fi
 			fi
 		fi
 		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then

@@ -90,7 +90,7 @@ check() {
 			local mesg="Invalid CHROOTPATH32 defined in $CFGFILE"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 		fi
-		
+
 		REPO="$CHROOTPATH32/root/repo"
 
 		if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -113,6 +113,18 @@ check() {
 			export TESTING="Enabled"
 		fi
 	fi
+
+	# identify status of multilib repo
+	PACFILE="$CHROOTPATH32/root/etc/pacman.conf"
+	if [[ -f "$PACFILE" ]]; then
+		if [[ $(grep '^#\[multilib\]' "$PACFILE") ]]; then
+			# multilib repo is not enabled
+			export MULTILIB="Disabled"
+		elif [[ $(grep '^\[multilib\]' "$PACFILE") ]]; then
+			# multilib repo is enabled
+			export MULTILIB="Enabled"
+		fi
+	fi
 }
 
 create() {
@@ -121,9 +133,27 @@ create() {
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 	fi
 
-	# setup the chroot
-	setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-		-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+	if [[ -n "$RUNDISTCC" ]]; then
+		# first check that the chroot matches that of the native environment
+		# since I am unclear how to handle a cross-compiling scenario using
+		# distcc on the native environment and makepkg within the chroot.
+
+		if [[ $(uname -m) = "i686" ]]; then
+			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+				-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel distcc
+		else
+			local mesg="Distcc build disabled! Cannot use distcc i686 to build a x86_64 package!"
+			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			DISTCCFAIL=1
+			sleep 3s
+			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+				-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+		fi
+	else
+		# not asking to use distcc so proceed with normal chroot
+		setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+			-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+	fi
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then
@@ -134,6 +164,18 @@ create() {
 			-i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH32/root/etc/makepkg.conf
 	fi
 
+	if [[ -n "$RUNDISTCC" ]]; then
+		if [[ $DISTCCFAIL -ne 1 ]]; then
+			sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+				-i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+				-i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH32/root/etc/makepkg.conf
+
+			# also may need /etc/hosts from the native environment if the user defined
+			# distcc slaves by hostname rather than by ip addy
+			[[ -f /etc/hosts ]] && cp /etc/hosts $CHROOTPATH32/root/etc
+		fi
+	fi
+
 	if [[ -n "$CFLAGS" ]]; then
 		sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
 			-i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' $CHROOTPATH32/root/etc/makepkg.conf
@@ -141,28 +183,53 @@ create() {
 
 	# enable pacman color output in chroot because I like it
 	sed -i -e '/^#Color/ s,#,,' $CHROOTPATH32/root/etc/pacman.conf
-	
+
 	# do the same for gcc errors
 	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH32/root/etc/makepkg.conf
 }
 
+modify_mcp() {
+	# since /usr/bin/makechrootpkg provided by devtools will overwrite the
+	# $MAKEFLAGS and $PACKAGER upon the user invoking it, we simply create
+	# a copy of this script removing the offending lines and defaulting to the
+	# $MAKEFLAGS and $PACKAGER the ccm user defined in the config file.
+	#
+	# this function is broken out of the 'create' function for compatibility
+	# with users who keep their clean-chroots around using older versions of ccm.
+
+	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' \
+		-e '/if \[\[ -n $PACKAGER/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH32/root/makechrootpkg-mod
+
+	if [[ $? -ne 0 ]]; then
+		local mesg="Could not make a copy of /usr/bin/makechrootpkg which should not happen!"
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		exit 1
+	fi
+
+	chmod +x $CHROOTPATH32/root/makechrootpkg-mod
+}
+
 check2() {
 	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
-		local mesg="Create a chroot first using the 'c' option and try again."
+		local mesg="No chroot found. Create a chroot first using the 'c' option and try again."
 		echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		exit 1
 	fi
 }
 
 build() {
+	# with version 3.69, $CHROOTPATH32/root/makechrootpkg-mod is created by ccm
+	# in order to preserve user setttings and is now required to run so fail if
+	# an old chroot is on a filesystem
+	[[ -x $CHROOTPATH32/root/makechrootpkg-mod ]] || modify_mcp
 	# try to build the package
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 makechrootpkg -c -u -r $CHROOTPATH32
+		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -c -u -r $CHROOTPATH32
 	else
-		nice -19 makechrootpkg -c -u -n -r $CHROOTPATH32
+		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -c -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -175,9 +242,9 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 makechrootpkg -u -r $CHROOTPATH32
+		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -u -r $CHROOTPATH32
 	else
-		nice -19 makechrootpkg -u -n -r $CHROOTPATH32
+		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -190,7 +257,7 @@ indexit() {
 	if [[ -z $(grep clean-chroot $CHROOTPATH32/root/etc/pacman.conf) ]]; then
 		# add a local repo to chroot
 		sed -i '/\[testing\]/i \
-# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+			# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
 			$CHROOTPATH32/root/etc/pacman.conf
 	fi
 
@@ -202,7 +269,7 @@ indexit() {
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure i686 repo
 	# with x86_64 packages so only process 'i686' and 'any' types
-	for i in $(ls *.pkg.tar.xz | sed '/-x86_64.pkg.tar.xz/d'); do
+	for i in $(ls *.pkg.tar.xz | sed '/-i686.pkg.tar.xz/d'); do
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
@@ -282,19 +349,21 @@ preview() {
 		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
 	echo -en ${BOLD}" chroot path:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH32 $PRESENT"${ALL_OFF}
+	echo
+	echo -en ${BOLD}" makeflags:"
+	echo -e "$(tput cr)$(tput cuf 14)${BOLD}$THREADS"${ALL_OFF}
+	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+	echo -en ${BOLD}" use namcap:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	[[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+	echo -en ${BOLD}" use distcc:"
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	echo
 	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [testing]:"
 	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$TESTING"${ALL_OFF}
-	[[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
-	[[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
-	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
-	echo -en ${BOLD}" makeflags:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$THREADS"${ALL_OFF}
-	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-	echo -en ${BOLD}" use namcap:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
 }
 
 header() {
@@ -335,11 +404,21 @@ case "$1" in
 		header && preview
 		;;
 	s)
+		if [[ -n "$RUNDISTCC" ]]; then
+			if [[ $DISTCCFAIL -ne 1 ]]; then
+				systemctl is-active distccd &>/dev/null
+				if [[ $? -ne 0 ]]; then
+					mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
+					echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+					exit 1
+				fi
+			fi
+		fi
 		if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			mesg=
-			create
+			create && modify_mcp
 		fi
 		build && indexit
 		;;
@@ -348,7 +427,7 @@ case "$1" in
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			mesg=
-			create
+			create && modify_mcp
 		fi
 		buildnc && indexit
 		;;
