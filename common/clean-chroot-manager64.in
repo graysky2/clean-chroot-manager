@@ -170,13 +170,26 @@ create() {
 
 	# do the same for gcc errors
 	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH64/root/etc/makepkg.conf
+}
 
-	# since /usr/bin/makechrootpkg provided by devtools will overwright the
-	# MAKEFLAGS upon the user invoking it, we simply create a copy of this
-	# script removing the offending lines and defaulting to the MAKEFLAGS
-	# the ccm user defined in the config file
+modify_mcp() {
+	# since /usr/bin/makechrootpkg provided by devtools will overwrite the
+	# $MAKEFLAGS and $PACKAGER upon the user invoking it, we simply create
+	# a copy of this script removing the offending lines and defaulting to the
+	# $MAKEFLAGS and $PACKAGER the ccm user defined in the config file.
+	#
+	# this function is broken out of the 'create' function for compatibility
+	# with users who keep their clean-chroots around using older versions of ccm.
 
-	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
+	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' \
+		-e '/if \[\[ -n $PACKAGER/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
+
+	if [[ $? -ne 0 ]]; then
+		local mesg="Could copy /usr/bin/makechrootpkg into the chroot!"
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		exit 1
+	fi
+
 	chmod +x $CHROOTPATH64/root/makechrootpkg-mod
 }
 
@@ -189,6 +202,10 @@ check2() {
 }
 
 build() {
+	# with version 3.69, $CHROOTPATH64/root/makechrootpkg-mod is created by ccm
+	# in order to preserve user setttings and is now required to run so fail if
+	# an old chroot is on a filesystem
+	[[ -x $CHROOTPATH64/root/makechrootpkg-mod ]] || modify_mcp
 	# try to build the package
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -379,7 +396,7 @@ check
 
 case "$1" in
 	c)
-		create
+		create && modify_mcp
 		;;
 	t)
 		check2 && testing
@@ -414,7 +431,7 @@ case "$1" in
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			mesg=
-			create
+			create && modify_mcp
 		fi
 		build && indexit
 		;;
@@ -423,7 +440,7 @@ case "$1" in
 			mesg="No chroot has been created so making one now..."
 			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			mesg=
-			create
+			create && modify_mcp
 		fi
 		buildnc && indexit
 		;;

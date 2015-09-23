@@ -2,7 +2,7 @@
 Wrapper scripts to manage clean chroots (x86_64 and i686) for building packages under Arch Linux.
 
 ## Why use it?
-Ccm provides several advantages over the standar arch-build scripts:
+Ccm provides several advantages over the standard arch-build scripts:
 * Automatically setups and uses distcc to speed up compilation (if enabled).
 * Automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo.
 
