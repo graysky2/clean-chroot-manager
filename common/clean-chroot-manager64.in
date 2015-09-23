@@ -185,7 +185,7 @@ modify_mcp() {
 		-e '/if \[\[ -n $PACKAGER/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
 
 	if [[ $? -ne 0 ]]; then
-		local mesg="Could copy /usr/bin/makechrootpkg into the chroot!"
+		local mesg="Could not make a copy of /usr/bin/makechrootpkg which should not happen!"
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		exit 1
 	fi
