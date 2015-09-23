@@ -59,7 +59,7 @@ echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 exit 1; }
 
 if [[ $(uname -m) != "x86_64" ]]; then
-	local mesg="Cannot build 64-bit packages on i686!"
+	mesg="Cannot build 64-bit packages on i686!"
 	echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 fi
 
