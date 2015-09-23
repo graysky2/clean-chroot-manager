@@ -58,6 +58,11 @@ mesg="devtools is required to use this script. Aborting."
 echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 exit 1; }
 
+if [[ $(uname -m) != "x86_64" ]]; then
+	local mesg="Cannot build 64-bit packages on i686!"
+	echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+fi
+
 check() {
 	if [[ $EUID -ne 0 ]]; then
 		local mesg="This script must be called as root!"
@@ -143,7 +148,7 @@ create() {
 			# the package rather than modifying makepkg within the chroot
 			mkarchroot $CHROOTPATH64/root base-devel distcc
 		else
-			local mesg="Distcc build disabled! cannot use distcc x86_64 to build an i686 package!"
+			local mesg="Distcc build disabled! Cannot use distcc x86_64 to build an i686 package!"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			DISTCCFAIL=1
 			sleep 3s
