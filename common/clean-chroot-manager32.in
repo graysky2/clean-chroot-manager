@@ -269,7 +269,7 @@ indexit() {
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure i686 repo
 	# with x86_64 packages so only process 'i686' and 'any' types
-	for i in $(ls *.pkg.tar.xz | sed '/-i686.pkg.tar.xz/d'); do
+	for i in $(ls *.pkg.tar.xz | sed '/-x86_64.pkg.tar.xz/d'); do
 		cp "$i" $REPO
 		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
 
