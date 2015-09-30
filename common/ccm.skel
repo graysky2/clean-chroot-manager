@@ -43,6 +43,15 @@ RUNNAMCAP=""
 # https://wiki.archlinux.org/index.php/Distcc
 RUNDISTCC=""
 
+# If set, the value defined will be used for the final placement of the
+# package. Don't comment it out, only set it to the empty string
+#
+# PKGDEST=""
+#
+# if you prefer the packages to be placed in the same directory as the
+# PKGBUILD file.
+PKGDEST=""
+
 # Define all machines in the distcc cluster below using the distcc syntax of:
 # "hostname/threads" and remember to list localhost/n first, followed by your
 # slave nodes listed in decreasing order of CPU power. Additional supported
