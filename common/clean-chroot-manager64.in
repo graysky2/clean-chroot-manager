@@ -412,7 +412,7 @@ nuke() {
 	if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
 		for i in $CHROOTPATH64/*; do
 			if [ -d $i ]; then
-				btrfs subvolume delete $i
+				btrfs subvolume delete $i &>/dev/null
 			else
 				rm -f $i
 			fi
