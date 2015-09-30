@@ -374,7 +374,17 @@ header() {
 nuke() {
 	local mesg="Nuking the chroot..."
 	echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	rm -rf $CHROOTPATH32/*
+	if [[ $(stat -f -c %T "$CHROOTPATH32") == btrfs ]]; then
+		for i in $CHROOTPATH32/*; do
+			if [ -d $i ]; then
+				btrfs subvolume delete $i
+			else
+				rm -f $i
+			fi
+		done
+	else
+		rm -rf $CHROOTPATH32/*
+	fi
 }
 
 check
