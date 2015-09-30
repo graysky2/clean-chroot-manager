@@ -266,12 +266,19 @@ indexit() {
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
+	# find out if the user has $PKGDEST set in the makepkg.conf file
+	# and then copy the variable.
+	PKGDEST="$(grep "^PKGDEST=" /etc/makepkg.conf|cut -d '=' -f 2)"
+	if [ ! -z "$PKGDEST" ]; then
+		PKGDEST="${PKGDEST}/"
+	fi
+
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure i686 repo
 	# with x86_64 packages so only process 'i686' and 'any' types
-	for i in $(ls *.pkg.tar.xz | sed '/-x86_64.pkg.tar.xz/d'); do
+	for i in $(ls ${PKGDEST}*.pkg.tar.xz | sed '/-x86_64.pkg.tar.xz/d'); do
 		cp "$i" $REPO
-		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
+		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$(basename $i)" || exit 1
 
 		# ensure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
@@ -377,7 +384,7 @@ nuke() {
 	if [[ $(stat -f -c %T "$CHROOTPATH32") == btrfs ]]; then
 		for i in $CHROOTPATH32/*; do
 			if [ -d $i ]; then
-				btrfs subvolume delete $i
+				btrfs subvolume delete $i > /dev/null
 			else
 				rm -f $i
 			fi
