@@ -50,7 +50,9 @@ else
 fi
 
 HOMEDIR="$(getent passwd $USER | cut -d: -f6)"
-CFGFILE=$HOMEDIR/.config/$PKG.conf
+
+# allow user to override from cli thus using multiple files as needed
+CFGFILE=${CFGFILE:-$HOMEDIR/.config/$PKG.conf}
 
 # dependency checks probably not needed but they do not hurt
 command -v mkarchroot >/dev/null 2>&1 || {
