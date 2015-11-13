@@ -455,9 +455,14 @@ case "$1" in
 			if [[ $DISTCCFAIL -ne 1 ]]; then
 				systemctl is-active distccd &>/dev/null
 				if [[ $? -ne 0 ]]; then
+					[[ -f /usr/lib/systemd/system/distccd.service ]] &&
+						systemctl start distccd
+					systemctl is-active distccd &>/dev/null
+					[[ $? -eq 0 ]] || {
 					mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
 					echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 					exit 1
+				}
 				fi
 			fi
 		fi
