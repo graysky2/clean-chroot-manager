@@ -50,7 +50,9 @@ else
 fi
 
 HOMEDIR="$(getent passwd $USER | cut -d: -f6)"
-CFGFILE=$HOMEDIR/.config/$PKG.conf
+
+# allow user to override from cli thus using multiple files as needed
+CFGFILE=${CFGFILE:-$HOMEDIR/.config/$PKG.conf}
 
 # dependency checks probably not needed but they do not hurt
 command -v mkarchroot >/dev/null 2>&1 || {
@@ -418,53 +420,58 @@ case "$1" in
 			if [[ $DISTCCFAIL -ne 1 ]]; then
 				systemctl is-active distccd &>/dev/null
 				if [[ $? -ne 0 ]]; then
+					[[ -f /usr/lib/systemd/system/distccd.service ]] &&
+						systemctl start distccd
+					systemctl is-active distccd &>/dev/null
+					[[ $? -eq 0 ]] || {
 					mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
 					echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 					exit 1
-				fi
+				}
 			fi
 		fi
-		if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
-			mesg="No chroot has been created so making one now..."
-			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-			mesg=
-			create && modify_mcp
-		fi
-		build && indexit
-		;;
-	S)
-		if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
-			mesg="No chroot has been created so making one now..."
-			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-			mesg=
-			create && modify_mcp
-		fi
-		buildnc && indexit
-		;;
-	u)
-		check2 && update
-		;;
-	*)
-		header
-		echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
-		echo
-		echo -e ${BOLD}" --- SETUP AND BREAKDOWN  ---"
-		echo -e ${BOLD}" Target: ${BLUE}$CHROOTPATH32"${ALL_OFF}
-		echo -e ${BOLD}"   c) Create the clean chroot"${LL_OFF}
-		echo -e ${BOLD}"   n) Nuke the clean chroot"${ALL_OFF}
-		echo -e ${BOLD}"   t) Toggle [testing] on/off"${ALL_OFF}
-		echo
-		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
-		echo -e ${BOLD}"   s) Run makepkg in clean chroot (default)"${ALL_OFF}
-		echo -e ${BOLD}"   S) Run makepkg in clean chroot but do not clean first"${ALL_OFF}
-		echo
-		echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
-		echo -e ${BOLD}" Local repo: ${BLUE}$REPO"${ALL_OFF}
-		echo -e ${BOLD}"   l) List packages in local repo"${ALL_OFF}
-		echo -e ${BOLD}"   d) Delete all packages in the local repo"${ALL_OFF}
-		echo
-		echo -e ${BOLD}" --- MISCELLANEOUS ---"
-		echo -e ${BOLD}"   u) Update clean chroot"${ALL_OFF}
-		echo -e ${BOLD}"   p) Preview settings"${ALL_OFF}
-		;;
+	fi
+	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
+		mesg="No chroot has been created so making one now..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		mesg=
+		create && modify_mcp
+	fi
+	build && indexit
+	;;
+S)
+	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
+		mesg="No chroot has been created so making one now..."
+		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		mesg=
+		create && modify_mcp
+	fi
+	buildnc && indexit
+	;;
+u)
+	check2 && update
+	;;
+*)
+	header
+	echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
+	echo
+	echo -e ${BOLD}" --- SETUP AND BREAKDOWN  ---"
+	echo -e ${BOLD}" Target: ${BLUE}$CHROOTPATH32"${ALL_OFF}
+	echo -e ${BOLD}"   c) Create the clean chroot"${LL_OFF}
+	echo -e ${BOLD}"   n) Nuke the clean chroot"${ALL_OFF}
+	echo -e ${BOLD}"   t) Toggle [testing] on/off"${ALL_OFF}
+	echo
+	echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
+	echo -e ${BOLD}"   s) Run makepkg in clean chroot (default)"${ALL_OFF}
+	echo -e ${BOLD}"   S) Run makepkg in clean chroot but do not clean first"${ALL_OFF}
+	echo
+	echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
+	echo -e ${BOLD}" Local repo: ${BLUE}$REPO"${ALL_OFF}
+	echo -e ${BOLD}"   l) List packages in local repo"${ALL_OFF}
+	echo -e ${BOLD}"   d) Delete all packages in the local repo"${ALL_OFF}
+	echo
+	echo -e ${BOLD}" --- MISCELLANEOUS ---"
+	echo -e ${BOLD}"   u) Update clean chroot"${ALL_OFF}
+	echo -e ${BOLD}"   p) Preview settings"${ALL_OFF}
+	;;
 esac
