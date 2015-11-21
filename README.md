@@ -70,6 +70,8 @@ In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories crea
 /etc/tmpfiles.d/ccm_dirs.conf
 d /scratch/.chroot64 0755 facade users -
 d /scratch/.chroot32 0755 facade users -
+
+Note that this is only needed if the location of the chroots are on a volatile filesystem like tmpfs.
 ```
 ##Links
 AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
