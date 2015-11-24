@@ -204,7 +204,9 @@ modify_mcp() {
 	# with users who keep their clean-chroots around using older versions of ccm.
 
 	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' \
-		-e '/if \[\[ -n $PACKAGER/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
+		-e '/if \[\[ -n $PACKAGER/,+4d' \
+		-e 's/load\_vars "$USER_HOME\/.makepkg.conf"/load\_vars "$USER_HOME\/.config\/clean-chroot-manager.conf"\n\[\[ ! -z $PKGDEST \]\] || PKGDEST=$PWD\nload\_vars "$USER_HOME\/.makepkg.conf"/' \
+		/usr/bin/makechrootpkg > $CHROOTPATH64/root/makechrootpkg-mod
 
 	if [[ $? -ne 0 ]]; then
 		local mesg="Could not make a copy of /usr/bin/makechrootpkg which should not happen!"
@@ -275,9 +277,10 @@ indexit() {
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure x86_64 repo
 	# with i686 packages so only process 'x86_64' and 'any' types
-	for i in $(ls *.pkg.tar.xz | sed '/-i686.pkg.tar.xz/d'); do
+	[[ -z $PKGDEST ]] || PKGDEST="${PKGDEST}/"
+	for i in $(ls ${PKGDEST}*.pkg.tar.xz | sed '/-i686.pkg.tar.xz/d'); do
 		cp "$i" $REPO
-		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
+		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$(basename $i)" || exit 1
 
 		# ensure that the chroot package matches the live pacman cache package
 		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
