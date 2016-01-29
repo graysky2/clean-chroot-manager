@@ -3,12 +3,15 @@ Wrapper scripts to manage clean chroots (x86_64 and i686) for building packages 
 
 ## Why use it?
 Ccm provides several advantages over the standard arch-build scripts:
-* Automatically setups and uses distcc to speed up compilation (if enabled).
 * Automatically manages a local repo within the chroot so dependencies that you build are pulled transparently from that local repo.
+* Automatically setups and uses distcc to speed up compilation (if enabled).
 
 Managing a local repo is helpful if building a package that has a dependency that also has to be built (i.e. one that is not available from the Arch repos). Another key point of differentiation is that ccm can build packages using distcc.
 
-An illustrative example, let's say that we want to build "bar" from the AUR. "Bar" has a build dependency of "foo" which is also in the AUR. Rather than first building "foo", then installing "foo", then building "bar", and finally removing "foo", the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein. Pacman within the chroot is aware of the "foo" package thanks to the local repo. So, when the user tries to build "bar", pacman will silently grabs foo.pkg.tar.xz from the local repo as any other dependency
+For example, let's say that we want to build "bar" from the AUR. "Bar" has a build dependency of "foo" which is also in the AUR. Rather than first building "foo", then installing "foo", then building "bar", and finally removing "foo", the local repo will save a copy of foo.pkg.tar.xz which is indexed automatically therein. Pacman within the chroot is aware of the "foo" package thanks to the local repo. So, when the user tries to build "bar", pacman will silently grabs foo.pkg.tar.xz from the local repo as any other dependency.
+
+## Download
+AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 
 ## Setup
 $XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocation of ccm and contains all user managed settings. Edit this file prior to running ccm a second time. Make sure the user running ccm has sudo rights to execute /usr/bin/clean-chroot-manager or /usr/bin/ccm.
@@ -33,7 +36,7 @@ Create a clean 64-bit chroot under the path defined in the aforementioned config
 $ sudo ccm64 c
 ```
 
-Ceate a clean 32-bit chroot under the path defined in the aforementioned config file:
+Create a clean 32-bit chroot under the path defined in the aforementioned config file:
 ```
 $ sudo ccm32 c
 ```
@@ -73,5 +76,3 @@ d /scratch/.chroot32 0755 facade users -
 
 Note that this is only needed if the location of the chroots are on a volatile filesystem like tmpfs.
 ```
-##Links
-AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
