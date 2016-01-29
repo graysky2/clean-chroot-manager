@@ -288,6 +288,22 @@ indexit() {
 	return 0
 }
 
+syncup() {	
+	# make sure the user and root copy of repo are in sync since invoking
+	# without the -c switch will not on its own
+	[[ -d $CHROOTPATH32/root/repo ]] &&
+		rsync -ax $CHROOTPATH32/root/repo/ $CHROOTPATH32/$USER/repo/
+	
+	# also need a safeguard for users invoking `ccm S` one a fresh chroot to insure
+	# that the user's pacman.conf also contains the entry for [chroot_local]
+	if [[ -z $(grep clean-chroot $CHROOTPATH32/$USER/etc/pacman.conf) ]]; then
+		# add a local repo to chroot
+		sed -i '/\[testing\]/i \
+			# Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+			$CHROOTPATH32/$USER/etc/pacman.conf
+	fi
+}
+
 update() {
 	local mesg="Updating the chroot..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -437,7 +453,7 @@ case "$1" in
 		mesg=
 		create && modify_mcp
 	fi
-	build && indexit
+	build && indexit && syncup
 	;;
 S)
 	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
@@ -446,7 +462,7 @@ S)
 		mesg=
 		create && modify_mcp
 	fi
-	buildnc && indexit
+		buildnc && indexit && syncup
 	;;
 u)
 	check2 && update
