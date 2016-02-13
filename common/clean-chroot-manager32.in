@@ -143,6 +143,7 @@ create() {
 		if [[ $(uname -m) = "i686" ]]; then
 			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
 				-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel distcc
+			[[ $? -eq 0 ]] || exit 1
 		else
 			local mesg="Distcc build disabled! Cannot use distcc i686 to build a x86_64 package!"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -150,11 +151,13 @@ create() {
 			sleep 3s
 			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
 				-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+			[[ $? -eq 0 ]] || exit 1
 		fi
 	else
 		# not asking to use distcc so proceed with normal chroot
 		setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
 			-M /usr/share/devtools/makepkg-i686.conf $CHROOTPATH32/root base-devel
+		[[ $? -eq 0 ]] || exit 1
 	fi
 
 	# setup /etc/makepkg.conf in the chroot
@@ -293,7 +296,7 @@ syncup() {
 	# without the -c switch will not on its own
 	[[ -d $CHROOTPATH32/root/repo ]] &&
 		rsync -ax $CHROOTPATH32/root/repo/ $CHROOTPATH32/$USER/repo/
-	
+
 	# also need a safeguard for users invoking `ccm S` one a fresh chroot to insure
 	# that the user's pacman.conf also contains the entry for [chroot_local]
 	if [[ -z $(grep clean-chroot $CHROOTPATH32/$USER/etc/pacman.conf) ]]; then
@@ -462,7 +465,7 @@ S)
 		mesg=
 		create && modify_mcp
 	fi
-		buildnc && indexit && syncup
+	buildnc && indexit && syncup
 	;;
 u)
 	check2 && update

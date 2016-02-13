@@ -149,16 +149,19 @@ create() {
 			# note that makepkg will check for the distcc bin so just install
 			# the package rather than modifying makepkg within the chroot
 			mkarchroot $CHROOTPATH64/root base-devel distcc
+			[[ $? -eq 0 ]] || exit 1
 		else
 			local mesg="Distcc build disabled! Cannot use distcc x86_64 to build an i686 package!"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			DISTCCFAIL=1
 			sleep 3s
 			mkarchroot $CHROOTPATH64/root base-devel
+			[[ $? -eq 0 ]] || exit 1
 		fi
 	else
 		# not asking to use distcc so proceed with normal schroot
 		mkarchroot $CHROOTPATH64/root base-devel
+		[[ $? -eq 0 ]] || exit 1
 	fi
 
 	# setup /etc/makepkg.conf in the chroot
