@@ -193,27 +193,6 @@ create() {
 	sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' $CHROOTPATH32/root/etc/makepkg.conf
 }
 
-modify_mcp() {
-	# since /usr/bin/makechrootpkg provided by devtools will overwrite the
-	# $MAKEFLAGS and $PACKAGER upon the user invoking it, we simply create
-	# a copy of this script removing the offending lines and defaulting to the
-	# $MAKEFLAGS and $PACKAGER the ccm user defined in the config file.
-	#
-	# this function is broken out of the 'create' function for compatibility
-	# with users who keep their clean-chroots around using older versions of ccm.
-
-	sed -e '/if \[\[ -n $MAKEFLAG/,+4d' \
-		-e '/if \[\[ -n $PACKAGER/,+4d' /usr/bin/makechrootpkg > $CHROOTPATH32/root/makechrootpkg-mod
-
-	if [[ $? -ne 0 ]]; then
-		local mesg="Could not make a copy of /usr/bin/makechrootpkg which should not happen!"
-		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		exit 1
-	fi
-
-	chmod +x $CHROOTPATH32/root/makechrootpkg-mod
-}
-
 check2() {
 	if [[ ! -f $CHROOTPATH32/root/.arch-chroot ]]; then
 		local mesg="No chroot found. Create a chroot first using the 'c' option and try again."
@@ -223,18 +202,14 @@ check2() {
 }
 
 build() {
-	# with version 3.69, $CHROOTPATH32/root/makechrootpkg-mod is created by ccm
-	# in order to preserve user setttings and is now required to run so fail if
-	# an old chroot is on a filesystem
-	[[ -x $CHROOTPATH32/root/makechrootpkg-mod ]] || modify_mcp
 	# try to build the package
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -c -u -r $CHROOTPATH32
+		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r $CHROOTPATH32
 	else
-		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -c -u -n -r $CHROOTPATH32
+		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -247,9 +222,9 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -u -r $CHROOTPATH32
+		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -u -r $CHROOTPATH32
 	else
-		nice -19 $CHROOTPATH32/root/makechrootpkg-mod -u -n -r $CHROOTPATH32
+		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -454,7 +429,7 @@ case "$1" in
 		mesg="No chroot has been created so making one now..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		mesg=
-		create && modify_mcp
+		create
 	fi
 	build && indexit && syncup
 	;;
@@ -463,7 +438,7 @@ S)
 		mesg="No chroot has been created so making one now..."
 		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 		mesg=
-		create && modify_mcp
+		create
 	fi
 	buildnc && indexit && syncup
 	;;
