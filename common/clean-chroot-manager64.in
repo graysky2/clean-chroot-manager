@@ -217,6 +217,11 @@ build() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
+	
+	# makepkg can can fail to build without throwing an error code so stop if
+	# no .pkg.tar.xz is present in the dir
+	# TODO make the hardcoded default below read from makepkg.conf
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
 }
 
 buildnc() {
@@ -232,6 +237,11 @@ buildnc() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
+	
+	# makepkg can can fail to build without throwing an error code so stop if
+	# no .pkg.tar.xz is present in the dir
+	# TODO make the hardcoded default below read from makepkg.conf
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
 }
 
 indexit() {
@@ -248,12 +258,12 @@ indexit() {
 	[[ ! -d $CHROOTPATH64/root/repo ]] && mkdir $CHROOTPATH64/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-
+	
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure x86_64 repo
 	# with i686 packages so only process 'x86_64' and 'any' types
 	for i in *.pkg.tar.xz; do
-		if [[ $i = *i686.pkg.tar.xz ]]; then
+		if [[ "$i" = *i686.pkg.tar.xz ]]; then
 			continue
 		else
 			cp "$i" $REPO
