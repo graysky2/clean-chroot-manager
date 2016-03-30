@@ -259,14 +259,18 @@ indexit() {
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure i686 repo
 	# with x86_64 packages so only process 'i686' and 'any' types
-	for i in $(ls *.pkg.tar.xz | sed '/-x86_64.pkg.tar.xz/d'); do
-		cp "$i" $REPO
-		repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
-
-		# ensure that the chroot package matches the live pacman cache package
-		# which avoids checksum errors if the user builds the same $pkgname-$pkgver
-		# more than once
-		[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+	for i in *.pkg.tar.xz; do
+		if [[ "$i" = *x86_64.pkg.tar.xz ]]; then
+			continue
+		else
+			cp "$i" $REPO
+			repo-add $REPO/chroot_local.db.tar.gz $REPO/"$i" || exit 1
+			
+			# ensure that the chroot package matches the live pacman cache package
+			# which avoids checksum errors if the user builds the same $pkgname-$pkgver
+			# more than once
+			[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+		fi
 	done
 
 	# The rm statement above can return 1 if the file to remove is not found,
