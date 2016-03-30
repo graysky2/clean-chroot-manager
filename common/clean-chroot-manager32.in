@@ -214,6 +214,11 @@ build() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
+	
+	# makepkg can can fail to build without throwing an error code so stop if
+	# no .pkg.tar.xz is present in the dir
+	# TODO make the hardcoded default below read from makepkg.conf
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
 }
 
 buildnc() {
@@ -229,6 +234,11 @@ buildnc() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
+	
+	# makepkg can can fail to build without throwing an error code so stop if
+	# no .pkg.tar.xz is present in the dir
+	# TODO make the hardcoded default below read from makepkg.conf
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
 }
 
 indexit() {
