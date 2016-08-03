@@ -384,10 +384,10 @@ multilib() {
 
 preview() {
 	[[ -f $CHROOTPATH64/root/.arch-chroot ]] && \
-		PRESENT="${BOLD}${GREEN}(Present)${ALL_OFF}" || \
+		PRESENT="${BOLD}($(du -sh $CHROOTPATH64 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}" || \
 		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
 	echo -en ${BOLD}" chroot path:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH64 $PRESENT"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT"${ALL_OFF}
 	echo
 	echo -en ${BOLD}" makeflags:"
 	echo -e "$(tput cr)$(tput cuf 14)${BOLD}$THREADS"${ALL_OFF}
