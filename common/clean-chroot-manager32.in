@@ -207,9 +207,9 @@ build() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r $CHROOTPATH32
+		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r $CHROOTPATH32
 	else
-		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r $CHROOTPATH32
+		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
@@ -227,9 +227,9 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
 	if [[ -z "$RUNNAMCAP" ]]; then
-		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -u -r $CHROOTPATH32
+		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r $CHROOTPATH32
 	else
-		PACKAGER=$PACKAGER THREADS=$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r $CHROOTPATH32
+		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r $CHROOTPATH32
 	fi
 
 	# stop here if build fails
