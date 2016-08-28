@@ -135,6 +135,6 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 .fi
 .SH BUGS
 .IP \(bu 3
-Currently, an open bug against core/devtools can cause the building of VCS packages (bzr, git, svn, etc.) to fail. This is not due to ccm, See https://bugs.archlinux.org/task/39097 for more. The temp solution is to have the needed VCS tool installed on the host system (not in the chroot) since makepkg will downloads the source locally and then copy it into the chroot building with \fB--holdver\fP.
+Currently, an open bug against core/devtools can cause the building of VCS packages (bzr, git, svn, etc.) to fail. This is not due to ccm. See https://bugs.archlinux.org/task/39097 for more. The temp solution is to have the needed VCS tool installed on the host system (not in the chroot) since makepkg will download the source locally and then copy it into the chroot building with \fB--holdver\fP.
 .SH AUTHOR
 graysky (graysky AT archlinux DOT us).
