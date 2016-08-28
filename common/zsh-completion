@@ -4,6 +4,7 @@ _ccm() {
   local -a options
 
   options=('c:create the clean chroot'
+          'cd:create the clean chroot with distcc'
            'n:nuke the clean chroot'
            't:toggle [testing] on or off'
            'm:toggle [multilib] on or off'
