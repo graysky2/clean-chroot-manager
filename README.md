@@ -20,6 +20,7 @@ $XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocati
 | Command | Description |
 | :---: | --- |
 | c | Create a clean chroot. |
+| cd | Create a clean chroot with distcc enabled (if you do not want to set up in the config file). |
 | n | Nuke the clean chroot (delete it and everything under it). |
 | t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
