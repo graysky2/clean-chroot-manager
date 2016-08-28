@@ -109,6 +109,16 @@ check() {
 		fi
 	fi
 
+	if [[ -n "$DISTCC_THREADS" ]]; then
+		if [[ "$DISTCC_THREADS" =~ ^[0-9]+$ ]]; then
+			# correctly setup
+			/bin/true
+		else
+			local mesg="Invalid setting for DISTCC_THREADS defined in $SKEL"
+			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+		fi
+	fi
+
 	# identify status of testing repo
 	PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
 	if [[ -f "$PACFILE" ]]; then
@@ -144,6 +154,9 @@ create() {
 		# first check that the chroot matches that of the native environment
 		# since I am unclear how to handle a cross-compiling scenario using
 		# distcc on the native environment and makepkg within the chroot.
+
+		# override threads with distcc value if building with distcc
+		THREADS=$DISTCC_THREADS
 
 		if [[ $(uname -m) = "x86_64" ]]; then
 			# note that makepkg will check for the distcc bin so just install
@@ -217,7 +230,7 @@ build() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
-	
+
 	# makepkg can can fail to build without throwing an error code so stop if
 	# no .pkg.tar.xz is present in the dir
 	# TODO make the hardcoded default below read from makepkg.conf
@@ -237,7 +250,7 @@ buildnc() {
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
-	
+
 	# makepkg can can fail to build without throwing an error code so stop if
 	# no .pkg.tar.xz is present in the dir
 	# TODO make the hardcoded default below read from makepkg.conf
@@ -258,7 +271,7 @@ indexit() {
 	[[ ! -d $CHROOTPATH64/root/repo ]] && mkdir $CHROOTPATH64/root/repo
 	local mesg="Adding package to chroot repo..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-	
+
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure x86_64 repo
 	# with i686 packages so only process 'x86_64' and 'any' types
@@ -387,27 +400,31 @@ preview() {
 		PRESENT="${BOLD}($(du -sh $CHROOTPATH64 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}" || \
 		PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
 	echo -en ${BOLD}" chroot path:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT"${ALL_OFF}
 	echo
-	echo -en ${BOLD}" makeflags:"
-	echo -e "$(tput cr)$(tput cuf 14)${BOLD}$THREADS"${ALL_OFF}
+	echo -en ${BOLD}" threads:"
+	echo -e "$(tput cr)$(tput cuf 17)${BOLD}$THREADS"${ALL_OFF}
 	[[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
 	echo -en ${BOLD}" use namcap:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR"${ALL_OFF}
 	[[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
 	echo -en ${BOLD}" use distcc:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$BAR"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR"${ALL_OFF}
+	if [[ -n "$DISTCC_THREADS" ]]; then
+		echo -en ${BOLD}" distcc_threads:"
+		echo -e "$(tput cr)$(tput cuf 17)${BOLD}$DISTCC_THREADS"${ALL_OFF}
+	fi
 	echo
 	[[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [testing]:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$TESTING"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 17)${BLUE}$TESTING"${ALL_OFF}
 	[[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
 	[[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
 	[[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
 	echo -en ${BOLD}" [multilib]:"
-	echo -e "$(tput cr)$(tput cuf 14)${BLUE}$MULTILIB"${ALL_OFF}
+	echo -e "$(tput cr)$(tput cuf 17)${BLUE}$MULTILIB"${ALL_OFF}
 }
 
 header() {
@@ -431,11 +448,60 @@ nuke() {
 	fi
 }
 
+distcc_check() {
+	# this is a catch-all function to check for a running distcc and to
+	# override the THREADS value due to https://bugs.archlinux.org/task/44827
+	
+	# if the chroot is already created, see if distcc is enabled and if it is
+	# simply set RUNDISTCC which may or may not be set in the config file
+	# if the user created the chroot with the 'cd' swtich
+
+	if [[ -f "$CHROOTPATH64/root/etc/makepkg.conf" ]]; then
+		if grep -q -i '^BUILDENV=(distcc' "$CHROOTPATH64/root/etc/makepkg.conf"; then
+			# a chroot is present with distcc enabled
+			RUNDISTCC=y
+		fi
+	fi
+
+	# RUNDISTCC can also be forced via the 'cd' swtich as well as set in the config
+	if [[ -n "$RUNDISTCC" ]]; then
+		# fail if distcc_threads aren't defined
+		[[ -n "$DISTCC_THREADS" ]] || {
+		mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc. Aborting."
+		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+		exit 1; }
+		
+		# need to prefix the call to /usr/bin/makechrootpkg with threads value
+		# https://bugs.archlinux.org/task/44827
+		THREADS=$DISTCC_THREADS
+
+		# verify distcc is running and try to start it if not else fail
+		if [[ $DISTCCFAIL -ne 1 ]]; then
+			systemctl is-active distccd &>/dev/null
+			if [[ $? -ne 0 ]]; then
+				[[ -f /usr/lib/systemd/system/distccd.service ]] &&
+					systemctl start distccd
+				systemctl is-active distccd &>/dev/null
+				[[ $? -eq 0 ]] || {
+				mesg="Cannot start distcc... is it configured properly?"
+				echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+				exit 1
+			}
+		fi
+	fi
+fi
+}
+
 check
 
 case "$1" in
 	c)
-		create
+		distcc_check && create
+		;;
+	cd)
+		# force running with distcc to override the config file setting
+		RUNDISTCC=y
+		distcc_check && create
 		;;
 	t)
 		check2 && testing
@@ -458,63 +524,50 @@ case "$1" in
 		header && preview
 		;;
 	s)
-		if [[ -n "$RUNDISTCC" ]]; then
-			if [[ $DISTCCFAIL -ne 1 ]]; then
-				systemctl is-active distccd &>/dev/null
-				if [[ $? -ne 0 ]]; then
-					[[ -f /usr/lib/systemd/system/distccd.service ]] &&
-						systemctl start distccd
-					systemctl is-active distccd &>/dev/null
-					[[ $? -eq 0 ]] || {
-					mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
-					echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-					exit 1
-				}
-			fi
+		distcc_check
+		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
+			mesg="No chroot has been created so making one now..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			mesg=
+			create
 		fi
-	fi
-	if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
-		mesg="No chroot has been created so making one now..."
-		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		mesg=
-		create
-	fi
-	build && indexit && syncup
-	;;
-S)
-	if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
-		mesg="No chroot has been created so making one now..."
-		echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-		mesg=
-		create
-	fi
-	buildnc && indexit && syncup
-	;;
-u)
-	check2 && update
-	;;
-*)
-	header
-	echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
-	echo
-	echo -e ${BOLD}" --- SETUP AND BREAKDOWN  ---"
-	echo -e ${BOLD}" Target: ${BLUE}$CHROOTPATH64"${ALL_OFF}
-	echo -e ${BOLD}"   c) Create the clean chroot"${LL_OFF}
-	echo -e ${BOLD}"   n) Nuke the clean chroot"${ALL_OFF}
-	echo -e ${BOLD}"   t) Toggle [testing] on/off"${ALL_OFF}
-	echo -e ${BOLD}"   m) Toggle [multilib] on/off"${ALL_OFF}
-	echo
-	echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
-	echo -e ${BOLD}"   s) Run makepkg in clean chroot (default)"${ALL_OFF}
-	echo -e ${BOLD}"   S) Run makepkg in clean chroot but do not clean first"${ALL_OFF}
-	echo
-	echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
-	echo -e ${BOLD}" Local repo: ${BLUE}$REPO"${ALL_OFF}
-	echo -e ${BOLD}"   l) List packages in local repo"${ALL_OFF}
-	echo -e ${BOLD}"   d) Delete all packages in the local repo"${ALL_OFF}
-	echo
-	echo -e ${BOLD}" --- MISCELLANEOUS ---"
-	echo -e ${BOLD}"   u) Update clean chroot"${ALL_OFF}
-	echo -e ${BOLD}"   p) Preview settings"${ALL_OFF}
-	;;
+		build && indexit && syncup
+		;;
+	S)
+		if [[ ! -f $CHROOTPATH64/root/.arch-chroot ]]; then
+			mesg="No chroot has been created so making one now..."
+			echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+			mesg=
+			create
+		fi
+		buildnc && indexit && syncup
+		;;
+	u)
+		check2 && update
+		;;
+	*)
+		header
+		echo -e ${BOLD}" Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- SETUP AND BREAKDOWN  ---"
+		echo -e ${BOLD}" Target: ${BLUE}$CHROOTPATH64"${ALL_OFF}
+		echo -e ${BOLD}"   c) Create the clean chroot"${ALL_OFF}
+		echo -e ${BOLD}"  cd) Create the clean chroot with distcc"${ALL_OFF}
+		echo -e ${BOLD}"   n) Nuke the clean chroot"${ALL_OFF}
+		echo -e ${BOLD}"   t) Toggle [testing] on/off"${ALL_OFF}
+		echo -e ${BOLD}"   m) Toggle [multilib] on/off"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- BUILDING ---"${ALL_OFF}
+		echo -e ${BOLD}"   s) Run makepkg in clean chroot (default)"${ALL_OFF}
+		echo -e ${BOLD}"   S) Run makepkg in clean chroot but do not clean first"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- LOCAL REPO ---"${ALL_OFF}
+		echo -e ${BOLD}" Local repo: ${BLUE}$REPO"${ALL_OFF}
+		echo -e ${BOLD}"   l) List packages in local repo"${ALL_OFF}
+		echo -e ${BOLD}"   d) Delete all packages in the local repo"${ALL_OFF}
+		echo
+		echo -e ${BOLD}" --- MISCELLANEOUS ---"
+		echo -e ${BOLD}"   u) Update clean chroot"${ALL_OFF}
+		echo -e ${BOLD}"   p) Preview settings"${ALL_OFF}
+		;;
 esac
