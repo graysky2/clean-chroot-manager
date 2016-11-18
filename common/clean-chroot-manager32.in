@@ -150,6 +150,11 @@ create() {
 			sleep 3s
 		fi
         fi
+
+        if [[ -n "$USE_CCACHE" ]] ; then
+            pkgs+=( 'ccache' )
+        fi
+        
         # not asking to use distcc so proceed with normal chroot
 	setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
 		-M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root ${pkgs[*]}
@@ -202,7 +207,13 @@ build() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
         [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
-	PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u $RUNNAMCAP -r "$CHROOTPATH32"
+        [[ -n "$USE_CCACHE" ]] && { USE_CCACHE=-d$CCACHE_DIR
+                                    local ccache_dir="CCACHE_DIR=$CCACHE_DIR" }
+        
+        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg $USE_CCACHE \
+                -c -u $RUNNAMCAP \
+                -r "$CHROOTPATH32" \
+                -- $ccache_dir
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
@@ -219,8 +230,13 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
         [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
+        [[ -n "$USE_CCACHE" ]] && { USE_CCACHE=-d$CCACHE_DIR
+                                    local ccache_dir="CCACHE_DIR=$CCACHE_DIR" }
         
-        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u $RUNNAMCAP -r "$CHROOTPATH32"
+        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg $USE_CCACHE \
+                -u $RUNNAMCAP \
+                -r "$CHROOTPATH32" \
+                -- $ccache_dir
 	
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1

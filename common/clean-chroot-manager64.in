@@ -171,6 +171,11 @@ create() {
 			sleep 3s
 		fi
         fi
+
+        if [[ -n "$USE_CCACHE" ]] ; then
+            pkgs+=( 'ccache' )
+        fi
+        
 	# not asking to use distcc so proceed with normal schroot
 	mkarchroot "$CHROOTPATH64"/root ${pkgs[*]}
 	[[ $? -eq 0 ]] || exit 1
@@ -221,9 +226,15 @@ build() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-        [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
         
-	PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u $RUNNAMCAP -r "$CHROOTPATH64"
+        [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
+        [[ -n "$USE_CCACHE" ]] && { USE_CCACHE=-d$CCACHE_DIR
+                                    local ccache_dir="CCACHE_DIR=$CCACHE_DIR" }
+        
+  	PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg $USE_CCACHE \
+                -c -u $RUNNAMCAP \
+                -r "$CHROOTPATH64" \
+                -- $ccache_dir
 	
 
 	# stop here if build fails
@@ -241,8 +252,14 @@ buildnc() {
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
         [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
+        [[ -n "$USE_CCACHE" ]] && { USE_CCACHE=-d$CCACHE_DIR
+                                    local ccache_dir="CCACHE_DIR=$CCACHE_DIR" }
         
-        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u $RUNNAMCAP "$CHROOTPATH64"
+        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg $USE_CCACHE \
+                -u $RUNNAMCAP \
+                -r "$CHROOTPATH64" \
+                -- $ccache_dir
+	
 	
 
 	# stop here if build fails
@@ -500,6 +517,10 @@ case "$1" in
 		RUNDISTCC=y
 		distcc_check && create
 		;;
+        cc)
+                USE_CCACHE=y
+                create
+                ;;
 	t)
 		check2 && testing
 		# no need to call update since testing function handles this
