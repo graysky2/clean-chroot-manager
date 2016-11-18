@@ -130,6 +130,7 @@ check() {
 }
 
 create() {
+        local pkgs=('base-devel')
 	if [[ -f "$CHROOTPATH32"/root/.arch-chroot ]]; then
 		local mesg="Working directory $CHROOTPATH32 already exists."
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
@@ -141,24 +142,19 @@ create() {
 		# distcc on the native environment and makepkg within the chroot.
 
 		if [[ $(uname -m) = "i686" ]]; then
-			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-				-M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel distcc
-			[[ $? -eq 0 ]] || exit 1
+                        pkgs+=( 'distcc' )
 		else
 			local mesg="Distcc build disabled! Cannot use distcc i686 to build a x86_64 package!"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			DISTCCFAIL=1
 			sleep 3s
-			setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-				-M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel
-			[[ $? -eq 0 ]] || exit 1
 		fi
-	else
-		# not asking to use distcc so proceed with normal chroot
-		setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-			-M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel
-		[[ $? -eq 0 ]] || exit 1
-	fi
+        fi
+        # not asking to use distcc so proceed with normal chroot
+	setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+		-M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root ${pkgs[*]}
+	[[ $? -eq 0 ]] || exit 1
+	
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then

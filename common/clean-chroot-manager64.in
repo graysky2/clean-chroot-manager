@@ -145,11 +145,13 @@ check() {
 }
 
 create() {
+        local pkgs=( 'base-devel' )
 	if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-		local mesg="Working directory $CHROOTPATH64 already exists."
+       	    local mesg="Working directory $CHROOTPATH64 already exists."
 		echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
 	fi
 
+        
 	if [[ -n "$RUNDISTCC" ]]; then
 		# first check that the chroot matches that of the native environment
 		# since I am unclear how to handle a cross-compiling scenario using
@@ -161,21 +163,18 @@ create() {
 		if [[ $(uname -m) = "x86_64" ]]; then
 			# note that makepkg will check for the distcc bin so just install
 			# the package rather than modifying makepkg within the chroot
-			mkarchroot "$CHROOTPATH64"/root base-devel distcc
-			[[ $? -eq 0 ]] || exit 1
+			pkgs+=( 'distcc' )
 		else
 			local mesg="Distcc build disabled! Cannot use distcc x86_64 to build an i686 package!"
 			echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 			DISTCCFAIL=1
 			sleep 3s
-			mkarchroot "$CHROOTPATH64"/root base-devel
-			[[ $? -eq 0 ]] || exit 1
 		fi
-	else
-		# not asking to use distcc so proceed with normal schroot
-		mkarchroot "$CHROOTPATH64"/root base-devel
-		[[ $? -eq 0 ]] || exit 1
-	fi
+        fi
+	# not asking to use distcc so proceed with normal schroot
+	mkarchroot "$CHROOTPATH64"/root ${pkgs[*]}
+	[[ $? -eq 0 ]] || exit 1
+	
 
 	# setup /etc/makepkg.conf in the chroot
 	if [[ -z "$PACKAGER" ]]; then
