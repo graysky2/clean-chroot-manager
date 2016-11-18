@@ -221,11 +221,10 @@ build() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-	if [[ -z "$RUNNAMCAP" ]]; then
-		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH64"
-	else
-		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH64"
-	fi
+        [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
+        
+	PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u $RUNNAMCAP -r "$CHROOTPATH64"
+	
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
@@ -241,11 +240,10 @@ buildnc() {
 	local mesg="Attempting to build package..."
 	echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-	if [[ -z "$RUNNAMCAP" ]]; then
-		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH64"
-	else
-		PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH64"
-	fi
+        [[ -n "$RUNNAMCAP" ]] && RUNNAMCAP=-n
+        
+        PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u $RUNNAMCAP "$CHROOTPATH64"
+	
 
 	# stop here if build fails
 	[[ $? -eq 0 ]] || exit 1
