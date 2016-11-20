@@ -215,9 +215,8 @@ build() {
 	[[ $? -eq 0 ]] || exit 1
 
 	# makepkg can can fail to build without throwing an error code so stop if
-	# no .pkg.tar.xz is present in the dir
-	# TODO make the hardcoded default below read from makepkg.conf
-	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
+	# no .pkg.tar* is present in the dir
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
 }
 
 buildnc() {
@@ -235,9 +234,8 @@ buildnc() {
 	[[ $? -eq 0 ]] || exit 1
 
 	# makepkg can can fail to build without throwing an error code so stop if
-	# no .pkg.tar.xz is present in the dir
-	# TODO make the hardcoded default below read from makepkg.conf
-	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar.xz') ]] || exit 1
+	# no .pkg.tar* is present in the dir
+	[[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
 }
 
 indexit() {
@@ -258,8 +256,8 @@ indexit() {
 	# it could be that the user is building for both i686 and x86_64
 	# in which case we don't want to pollute the pure i686 repo
 	# with x86_64 packages so only process 'i686' and 'any' types
-	for i in *.pkg.tar.xz; do
-		if [[ "$i" = *x86_64.pkg.tar.xz ]]; then
+	for i in *.pkg.tar*; do
+		if [[ "$i" = *x86_64.pkg.tar* ]]; then
 			continue
 		else
 			cp "$i" "$REPO"
