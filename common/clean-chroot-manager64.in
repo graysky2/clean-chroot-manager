@@ -273,12 +273,15 @@ indexit() {
   # it could be that the user is building for both i686 and x86_64
   # in which case we don't want to pollute the pure x86_64 repo
   # with i686 packages so only process 'x86_64' and 'any' types
-  for i in *.pkg.tar*; do
-    if [[ "$i" = *i686.pkg.tar* ]]; then
+  [ $# -eq 0 ] && set - *.pkg.tar.*
+
+  for j in "$@" ; do
+    if [[ "$j" = *i686.pkg.tar* ]]; then
       continue
     else
-      cp "$i" "$REPO"
-      repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$i" || exit 1
+      i="$(basename "$j")"
+      cp "$j" "$REPO"
+      repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$(basename "$i")" || exit 1
 
       # ensure that the chroot package matches the live pacman cache package
       # which avoids checksum errors if the user builds the same $pkgname-$pkgver
@@ -540,6 +543,10 @@ case "$1" in
     fi
     buildnc && indexit && syncup
     ;;
+  i)
+    shift
+    indexit "$@"
+    ;; 
   u)
     check2 && update
     ;;
@@ -563,6 +570,7 @@ case "$1" in
     echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
     echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
     echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
+    echo -e "${BOLD}   i) Insert package in the local repo${ALL_OFF}"
     echo
     echo -e "${BOLD} --- MISCELLANEOUS ---"
     echo -e "${BOLD}   u) Update clean chroot${ALL_OFF}"
