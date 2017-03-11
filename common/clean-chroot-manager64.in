@@ -98,6 +98,11 @@ check() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
 
+    if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
+      local mesg="BTRFS targets for building are not supported."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
+
     REPO="$CHROOTPATH64/root/repo"
 
     if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -433,17 +438,7 @@ header() {
 nuke() {
   local mesg="Nuking the chroot..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
-    for i in "$CHROOTPATH64"/*; do
-      if [ -d "$i" ]; then
-        btrfs subvolume delete "$i" &>/dev/null
-      else
-        rm -f "$i"
-      fi
-    done
-  else
-    rm -rf "${CHROOTPATH64:?}"/*
-  fi
+  rm -rf "${CHROOTPATH64:?}"/*
 }
 
 distcc_check() {
