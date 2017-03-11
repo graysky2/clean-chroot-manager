@@ -225,6 +225,19 @@ check2() {
   fi
 }
 
+addit() {
+  if [[ -d "$CHROOTPATH64/$USER/repo" ]]; then
+    if ! rsync -rlxDu *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
+      exit 1
+    fi
+  else
+    # TODO generation of a clean working copy for $USER for now just fail if there isn't one
+    local mesg="$CHROOTPATH64/$USER/repo is not yet present so build something first to generate it."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    exit 1
+  fi
+}
+
 build() {
   local mesg="Attempting to build package..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -489,6 +502,10 @@ distcc_check() {
 check
 
 case "$1" in
+  a)
+    check2 && addit && indexit
+    [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup
+    ;;
   c)
     distcc_check && create
     ;;
@@ -557,6 +574,7 @@ case "$1" in
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
     echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
+    echo -e "${BOLD}   a) Add packages in current dir to the local repo${ALL_OFF}"
     echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
     echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
     echo

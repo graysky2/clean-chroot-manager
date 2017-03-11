@@ -10,6 +10,7 @@ _ccm() {
            'm:toggle [multilib] on or off'
            's:run makepkg in the clean chroot'
            'S:run makepkg in the clean chroot but do not clean first'
+           'a:add packages in current dir to local repo'
            'l:list packages in the local repo'
            'd:delete all packages in the local repo'
            'u:update the clean chroot manually'
