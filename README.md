@@ -29,6 +29,7 @@ $XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocati
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | d | Delete all packages in the local repo without nuking the entire chroot (i.e. the packages you built to date). |
 | u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
+| i | Insert pre-build packages inside the local repo |
 | p | Preview settings. Show some bits about the chroot itself. |
 
 ## Example Usage
