@@ -38,8 +38,7 @@ readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 ### End insert of Arch script
 
 if [[ -z "$SUDO_USER" ]]; then
-  logname &>/dev/null
-  if [[ $? -eq 0 ]]; then
+  if logname &>/dev/null; then
     USER=$(logname)
   fi
 elif [[ "$SUDO_USER" = "root" ]]; then
@@ -146,56 +145,59 @@ create() {
     # distcc on the native environment and makepkg within the chroot.
 
     if [[ $(uname -m) = "i686" ]]; then
-      setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-        -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel distcc
-      [[ $? -eq 0 ]] || exit 1
-    else
-      local mesg="Distcc build disabled! Cannot use distcc i686 to build a x86_64 package!"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      DISTCCFAIL=1
-      sleep 3s
-      setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-        -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel
-      [[ $? -eq 0 ]] || exit 1
+      if setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+        -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel distcc; then
+      exit 1
     fi
+  else
+    local mesg="Distcc build disabled! Cannot use distcc i686 to build a x86_64 package!"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    DISTCCFAIL=1
+    sleep 3s
+    if ! setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+      -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel; then
+    exit 1
+  fi
+fi
   else
     # not asking to use distcc so proceed with normal chroot
-    setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
-      -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel
-    [[ $? -eq 0 ]] || exit 1
+    if ! setarch "i686" mkarchroot -C /usr/share/devtools/pacman-extra.conf \
+      -M /usr/share/devtools/makepkg-i686.conf "$CHROOTPATH32"/root base-devel; then
+    exit 1
   fi
+fi
 
-  # setup /etc/makepkg.conf in the chroot
-  if [[ -z "$PACKAGER" ]]; then
-    sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH32/root/etc/makepkg.conf
-  else
-    sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
-      -i -e '/^#PACKAGER/ s,#,,' \
-      -i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH32/root/etc/makepkg.conf
+# setup /etc/makepkg.conf in the chroot
+if [[ -z "$PACKAGER" ]]; then
+  sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" $CHROOTPATH32/root/etc/makepkg.conf
+else
+  sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
+    -i -e '/^#PACKAGER/ s,#,,' \
+    -i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," $CHROOTPATH32/root/etc/makepkg.conf
+fi
+
+if [[ -n "$RUNDISTCC" ]]; then
+  if [[ $DISTCCFAIL -ne 1 ]]; then
+    sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+      -i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+      -i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH32/root/etc/makepkg.conf
+
+    # also may need /etc/hosts from the native environment if the user defined
+    # distcc slaves by hostname rather than by ip addy
+    [[ -f /etc/hosts ]] && cp /etc/hosts "$CHROOTPATH32"/root/etc
   fi
+fi
 
-  if [[ -n "$RUNDISTCC" ]]; then
-    if [[ $DISTCCFAIL -ne 1 ]]; then
-      sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-        -i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
-        -i -e '/^BUILDENV/ s,!distcc,distcc,' $CHROOTPATH32/root/etc/makepkg.conf
+if [[ -n "$CFLAGS" ]]; then
+  sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
+    -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH32"/root/etc/makepkg.conf
+fi
 
-      # also may need /etc/hosts from the native environment if the user defined
-      # distcc slaves by hostname rather than by ip addy
-      [[ -f /etc/hosts ]] && cp /etc/hosts "$CHROOTPATH32"/root/etc
-    fi
-  fi
+# enable pacman color output in chroot because I like it
+sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH32"/root/etc/pacman.conf
 
-  if [[ -n "$CFLAGS" ]]; then
-    sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
-      -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH32"/root/etc/makepkg.conf
-  fi
-
-  # enable pacman color output in chroot because I like it
-  sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH32"/root/etc/pacman.conf
-
-  # do the same for gcc errors
-  sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' "$CHROOTPATH32"/root/etc/makepkg.conf
+# do the same for gcc errors
+sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' "$CHROOTPATH32"/root/etc/makepkg.conf
 }
 
 check2() {
@@ -211,13 +213,14 @@ build() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH32"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH32"; then
+      exit 1
+    fi
   else
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH32"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH32"; then
+      exit 1
+    fi
   fi
-
-  # stop here if build fails
-  [[ $? -eq 0 ]] || exit 1
 
   # makepkg can can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
@@ -230,13 +233,14 @@ buildnc() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH32"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH32"; then
+      exit 1
+    fi
   else
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH32"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH32"; then
+      exit 1
+    fi
   fi
-
-  # stop here if build fails
-  [[ $? -eq 0 ]] || exit 1
 
   # makepkg can can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
@@ -418,61 +422,59 @@ case "$1" in
   s)
     if [[ -n "$RUNDISTCC" ]]; then
       if [[ $DISTCCFAIL -ne 1 ]]; then
-        systemctl is-active distccd &>/dev/null
-        if [[ $? -ne 0 ]]; then
-          [[ -f /usr/lib/systemd/system/distccd.service ]] &&
-            systemctl start distccd
-          systemctl is-active distccd &>/dev/null
-          [[ $? -eq 0 ]] || {
-          mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
-          echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-          exit 1
-        }
+        if ! systemctl is-active distccd &>/dev/null; then
+          [[ -f /usr/lib/systemd/system/distccd.service ]] && systemctl start distccd
+          if ! systemctl is-active distccd &>/dev/null; then
+            mesg="Please start distccd.service or edit $CFGFILE to not build with distcc..."
+            echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+            exit 1
+          fi
+        fi
       fi
     fi
-  fi
-  if [[ ! -f "$CHROOTPATH32"/root/.arch-chroot ]]; then
-    mesg="No chroot has been created so making one now..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
-    create
-  fi
-  build && indexit && syncup
-  ;;
-S)
-  if [[ ! -f "$CHROOTPATH32"/root/.arch-chroot ]]; then
-    mesg="No chroot has been created so making one now..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
-    create
-  fi
-  buildnc && indexit && syncup
-  ;;
-u)
-  check2 && update
-  ;;
-*)
-  header
-  echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
-  echo
-  echo -e "${BOLD} --- SETUP AND BREAKDOWN  ---"
-  echo -e "${BOLD} Target: ${BLUE}$CHROOTPATH32${ALL_OFF}"
-  echo -e "${BOLD}   c) Create the clean chroot${ALL_OFF}"
-  echo -e "${BOLD}   n) Nuke the clean chroot${ALL_OFF}"
-  echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
-  echo
-  echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-  echo -e "${BOLD}   s) Run makepkg in clean chroot (default)${ALL_OFF}"
-  echo -e "${BOLD}   S) Run makepkg in clean chroot but do not clean first${ALL_OFF}"
-  echo
-  echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
-  echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
-  echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
-  echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
-  echo
-  echo -e "${BOLD} --- MISCELLANEOUS ---"
-  echo -e "${BOLD}   u) Update clean chroot${ALL_OFF}"
-  echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
-  ;;
+
+    if [[ ! -f "$CHROOTPATH32"/root/.arch-chroot ]]; then
+      mesg="No chroot has been created so making one now..."
+      echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      mesg=
+      create
+    fi
+    build && indexit && syncup
+    ;;
+  S)
+    if [[ ! -f "$CHROOTPATH32"/root/.arch-chroot ]]; then
+      mesg="No chroot has been created so making one now..."
+      echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      mesg=
+      create
+    fi
+    buildnc && indexit && syncup
+    ;;
+  u)
+    check2 && update
+    ;;
+  *)
+    header
+    echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
+    echo
+    echo -e "${BOLD} --- SETUP AND BREAKDOWN  ---"
+    echo -e "${BOLD} Target: ${BLUE}$CHROOTPATH32${ALL_OFF}"
+    echo -e "${BOLD}   c) Create the clean chroot${ALL_OFF}"
+    echo -e "${BOLD}   n) Nuke the clean chroot${ALL_OFF}"
+    echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
+    echo
+    echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
+    echo -e "${BOLD}   s) Run makepkg in clean chroot (default)${ALL_OFF}"
+    echo -e "${BOLD}   S) Run makepkg in clean chroot but do not clean first${ALL_OFF}"
+    echo
+    echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
+    echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
+    echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
+    echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
+    echo
+    echo -e "${BOLD} --- MISCELLANEOUS ---"
+    echo -e "${BOLD}   u) Update clean chroot${ALL_OFF}"
+    echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
+    ;;
 esac
 # vim:set ts=2 sw=2 et:

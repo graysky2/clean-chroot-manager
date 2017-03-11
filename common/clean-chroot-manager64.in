@@ -38,8 +38,7 @@ readonly ALL_OFF BOLD BLUE GREEN RED YELLOW
 ### End insert of Arch script
 
 if [[ -z "$SUDO_USER" ]]; then
-  logname &>/dev/null
-  if [[ $? -eq 0 ]]; then
+  if logname &>/dev/null; then
     USER=$(logname)
   fi
 elif [[ "$SUDO_USER" = "root" ]]; then
@@ -166,20 +165,23 @@ create() {
     if [[ $(uname -m) = "x86_64" ]]; then
       # note that makepkg will check for the distcc bin so just install
       # the package rather than modifying makepkg within the chroot
-      mkarchroot "$CHROOTPATH64"/root base-devel distcc
-      [[ $? -eq 0 ]] || exit 1
+      if ! mkarchroot "$CHROOTPATH64"/root base-devel distcc; then
+        exit 1
+      fi
     else
       local mesg="Distcc build disabled! Cannot use distcc x86_64 to build an i686 package!"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       DISTCCFAIL=1
       sleep 3s
-      mkarchroot "$CHROOTPATH64"/root base-devel
-      [[ $? -eq 0 ]] || exit 1
+      if ! mkarchroot "$CHROOTPATH64"/root base-devel; then
+        exit 1
+      fi
     fi
   else
     # not asking to use distcc so proceed with normal schroot
-    mkarchroot "$CHROOTPATH64"/root base-devel
-    [[ $? -eq 0 ]] || exit 1
+    if ! mkarchroot "$CHROOTPATH64"/root base-devel; then
+      exit 1
+    fi
   fi
 
   # setup /etc/makepkg.conf in the chroot
@@ -228,13 +230,14 @@ build() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH64"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH64"; then
+      exit 1
+    fi
   else
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH64"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH64"; then
+      exit 1
+    fi
   fi
-
-  # stop here if build fails
-  [[ $? -eq 0 ]] || exit 1
 
   # makepkg can can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
@@ -247,13 +250,14 @@ buildnc() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH64"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH64"; then
+      exit 1
+    fi
   else
-    PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH64"
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH64"; then
+      exit 1
+    fi
   fi
-
-  # stop here if build fails
-  [[ $? -eq 0 ]] || exit 1
 
   # makepkg can can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
@@ -470,19 +474,16 @@ distcc_check() {
 
     # verify distcc is running and try to start it if not else fail
     if [[ $DISTCCFAIL -ne 1 ]]; then
-      systemctl is-active distccd &>/dev/null
-      if [[ $? -ne 0 ]]; then
-        [[ -f /usr/lib/systemd/system/distccd.service ]] &&
-          systemctl start distccd
-        systemctl is-active distccd &>/dev/null
-        [[ $? -eq 0 ]] || {
-        mesg="Cannot start distcc... is it configured properly?"
-        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-        exit 1
-      }
+      if ! systemctl is-active distccd &>/dev/null; then
+        [[ -f /usr/lib/systemd/system/distccd.service ]] && systemctl start distccd
+        if ! systemctl is-active distccd &>/dev/null; then
+          mesg="Cannot start distcc... is it configured properly?"
+          echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+          exit 1
+        fi
+      fi
     fi
   fi
-fi
 }
 
 check
@@ -514,7 +515,7 @@ case "$1" in
     nuke
     ;;
   p)
-    header && preview
+    header && distcc_check && preview
     ;;
   s)
     distcc_check
