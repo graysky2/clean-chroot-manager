@@ -265,6 +265,7 @@ indexit() {
   # it could be that the user is building for both i686 and x86_64
   # in which case we don't want to pollute the pure i686 repo
   # with x86_64 packages so only process 'i686' and 'any' types
+  GLOBIGNORE="*namcap.log"
   for i in *.pkg.tar*; do
     if [[ "$i" = *x86_64.pkg.tar* ]]; then
       continue
@@ -278,6 +279,7 @@ indexit() {
       [[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
     fi
   done
+  unset GLOBIGNORE
 
   # The rm statement above can return 1 if the file to remove is not found,
   # causing the function to return a non-zero error code even if everything
