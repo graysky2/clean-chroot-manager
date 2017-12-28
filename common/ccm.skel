@@ -1,10 +1,9 @@
-# Fully qualified path for clean chroots. One for 64-bit and one for 32-bit.
+# Fully qualified path for clean chroots.
 # Neither path should use a variable like $HOME.  If your machine has lots
 # of memory, consider locating this to tmpfs to avoid usage to the disk and
 # to minimize access times but know that unless you copy the contents to
 # physical media, it will not survive a reboot. See the manpage for tips.
-CHROOTPATH64="/scratch/chroot64"
-CHROOTPATH32="/scratch/chroot32"
+CHROOTPATH64="/scratch/.chroot64"
 
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
@@ -18,9 +17,7 @@ PACKAGER=""
 # for CFLAGS= and will be mirror automatically for the CXXFLAGS= therein.
 #
 # The default value for reference is:
-# "-march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong"
-# or
-# "-march=i686 -mtune=generic -O2 -pipe -fstack-protector-strong"
+# "-march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt"
 CFLAGS=""
 
 # Set this variable to anything if you want to run namcap on the built package

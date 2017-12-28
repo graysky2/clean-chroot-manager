@@ -1,4 +1,4 @@
-#compdef clean-chroot-manager clean-chroot-manager32 clean-chroot-manager64 ccm ccm32 ccm64
+#compdef clean-chroot-manager clean-chroot-manager64 ccm ccm64
 
 _ccm() {
   local -a options

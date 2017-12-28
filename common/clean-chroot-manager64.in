@@ -59,11 +59,6 @@ mesg="devtools is required to use this script. Aborting."
 echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 exit 1; }
 
-if [[ $(uname -m) != "x86_64" ]]; then
-  mesg="Cannot build 64-bit packages on i686!"
-  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-fi
-
 check() {
   if [[ $EUID -ne 0 ]]; then
     local mesg="This script must be called as root!"
@@ -134,18 +129,6 @@ check() {
       export TESTING="Enabled"
     fi
   fi
-
-  # identify status of multilib repo
-  PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
-  if [[ -f "$PACFILE" ]]; then
-    if [[ $(grep '^#\[multilib\]' "$PACFILE") ]]; then
-      # multilib repo is not enabled
-      export MULTILIB="Disabled"
-    elif [[ $(grep '^\[multilib\]' "$PACFILE") ]]; then
-      # multilib repo is enabled
-      export MULTILIB="Enabled"
-    fi
-  fi
 }
 
 create() {
@@ -166,14 +149,6 @@ create() {
       # note that makepkg will check for the distcc bin so just install
       # the package rather than modifying makepkg within the chroot
       if ! mkarchroot "$CHROOTPATH64"/root base-devel distcc; then
-        exit 1
-      fi
-    else
-      local mesg="Distcc build disabled! Cannot use distcc x86_64 to build an i686 package!"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      DISTCCFAIL=1
-      sleep 3s
-      if ! mkarchroot "$CHROOTPATH64"/root base-devel; then
         exit 1
       fi
     fi
@@ -391,32 +366,6 @@ testing() {
   fi
 }
 
-multilib() {
-  if [[ "$MULTILIB" = "Disabled" ]]; then
-    # switch on multilib
-    local mesg="Enabling [multilib] in chroot..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    sed -i -e '/^#\[multilib\]/ s,#,,' \
-      -i -e '/^\[multilib\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
-    arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
-    local mesg="To use the multilib version of gcc, execute the following:"
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc-multilib"
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  elif [[ "$MULTILIB" = "Enabled" ]]; then
-    # switch off multilib
-    local mesg="Disabling [multilib] in chroot..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    sed -i -e '/^\[multilib\]/ s,\[,#\[,' \
-      -i -e '/^#\[multilib\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
-    arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
-    local mesg="Restore the native x86_64 version of gcc by executing the following:"
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    local mesg="sudo arch-nspawn $CHROOTPATH64/root pacman -S gcc gcc-libs binutils"
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  fi
-}
-
 preview() {
   [[ -f "$CHROOTPATH64"/root/.arch-chroot ]] && \
     PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}" || \
@@ -442,11 +391,6 @@ preview() {
   [[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
   echo -en "${BOLD} [testing]:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$TESTING${ALL_OFF}"
-  [[ "$MULTILIB" = "Disabled" ]] && MULTILIB="${BOLD}${RED}Disabled${ALL_OFF}"
-  [[ "$MULTILIB" = "Enabled" ]] && MULTILIB="${BOLD}${GREEN}Enabled${ALL_OFF}"
-  [[ -z "$MULTILIB" ]] && MULTILIB="${BOLD}${RED}N/A${ALL_OFF}"
-  echo -en "${BOLD} [multilib]:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$MULTILIB${ALL_OFF}"
 }
 
 header() {
@@ -520,10 +464,6 @@ case "$1" in
     check2 && testing
     # no need to call update since testing function handles this
     ;;
-  m)
-    check2 && multilib
-    # no need to call update since multilib function handles this
-    ;;
   d)
     check2 && repocheck && delete
     ;;
@@ -568,7 +508,6 @@ case "$1" in
     echo -e "${BOLD}  cd) Create the clean chroot with distcc${ALL_OFF}"
     echo -e "${BOLD}   n) Nuke the clean chroot${ALL_OFF}"
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
-    echo -e "${BOLD}   m) Toggle [multilib] on/off${ALL_OFF}"
     echo
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg in clean chroot (default)${ALL_OFF}"
