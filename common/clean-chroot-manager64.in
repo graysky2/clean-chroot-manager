@@ -202,7 +202,7 @@ check2() {
 
 addit() {
   if [[ -d "$CHROOTPATH64/$USER/repo" ]]; then
-    if ! rsync -rlxDu *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
+    if ! rsync -rlxDu --exclude "*.log" *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
       exit 1
     fi
   else
