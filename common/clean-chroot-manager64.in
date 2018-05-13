@@ -118,6 +118,17 @@ check() {
     fi
   fi
 
+  if [[ -n "$USE_CCACHE" ]]; then
+      if  [[ ! -d "$CCACHE_DIR" ]]; then
+        local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
+        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      fi
+      if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
+        local mesg="User $USER has no write permissions on $CCACHE_DIR"
+        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      fi
+  fi
+
   # identify status of testing repo
   PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
   if [[ -f "$PACFILE" ]]; then
@@ -136,27 +147,22 @@ create() {
     local mesg="Working directory $CHROOTPATH64 already exists."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
   fi
+  
+  local pkgs=('base' 'base-devel')
 
   if [[ -n "$RUNDISTCC" ]]; then
-    # first check that the chroot matches that of the native environment
-    # since I am unclear how to handle a cross-compiling scenario using
-    # distcc on the native environment and makepkg within the chroot.
-
     # override threads with distcc value if building with distcc
     THREADS=$DISTCC_THREADS
+    pkgs+=('distcc')
+  fi
 
-    if [[ $(uname -m) = "x86_64" ]]; then
-      # note that makepkg will check for the distcc bin so just install
-      # the package rather than modifying makepkg within the chroot
-      if ! mkarchroot "$CHROOTPATH64"/root base-devel distcc; then
-        exit 1
-      fi
-    fi
-  else
-    # not asking to use distcc so proceed with normal schroot
-    if ! mkarchroot "$CHROOTPATH64"/root base-devel; then
-      exit 1
-    fi
+  if [[ -n "$USE_CCACHE" ]] ; then
+    pkgs+=('ccache')
+  fi
+
+  # not asking to use distcc so proceed with normal schroot
+  if ! mkarchroot "$CHROOTPATH64"/root ${pkgs[*]}; then
+    exit 1
   fi
 
   # setup /etc/makepkg.conf in the chroot
@@ -183,6 +189,10 @@ create() {
   if [[ -n "$CFLAGS" ]]; then
     sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
       -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
+  fi
+
+  if [[ -n "$USE_CCACHE" ]]; then
+    sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
   fi
 
   # enable pacman color output in chroot because I like it
@@ -214,14 +224,19 @@ build() {
   local mesg="Attempting to build package..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
+  args=('-c' '-u')
+  args+=(-r "$CHROOTPATH64")
+
+  if [[ -n "$USE_CCACHE" ]]; then
+    args+=(-d "$CCACHE_DIR:/build/.ccache")
+  fi
+
   if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH64"; then
-      exit 1
-    fi
-  else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH64"; then
-      exit 1
-    fi
+    args+=(-n)
+  fi
+
+  if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg "${args[@]}"; then
+    exit 1
   fi
 
   # makepkg can can fail to build without throwing an error code so stop if
@@ -382,6 +397,13 @@ preview() {
   [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
   echo -en "${BOLD} use namcap:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+  [[ -z "$USE_CCACHE" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+  echo -en "${BOLD} use ccache:"
+  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+  if [[ -n "$USE_CCACHE" ]]; then
+    echo -en "${BOLD} ccache_dir:"
+    echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CCACHE_DIR${ALL_OFF}"
+  fi
   echo
   [[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
   [[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"

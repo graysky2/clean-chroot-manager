@@ -45,3 +45,10 @@ DISTCC_THREADS=
 # slave nodes listed in decreasing order of CPU power. Additional supported
 # options are passed through, see the manpage for distcc.
 DISTCC_HOSTS="localhost/9 foo/8 bar/4"
+
+# Set this to anything if you want makepkg to support ccache
+# For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
+USE_CCACHE=
+
+# Set the directory where ccache stores its data
+CCACHE_DIR="/scratch/ccache"
