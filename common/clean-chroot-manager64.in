@@ -187,9 +187,6 @@ create() {
 
   # enable pacman color output in chroot because I like it
   sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
-
-  # do the same for gcc errors
-  sed -i -e 's/size=4/size=4 -fdiagnostics-color/g' "$CHROOTPATH64"/root/etc/makepkg.conf
 }
 
 check2() {
@@ -374,17 +371,17 @@ preview() {
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
   echo
   echo -en "${BOLD} threads:"
-  echo -e "$(tput cr)$(tput cuf 17)${BOLD}$THREADS${ALL_OFF}"
-  [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use namcap:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+  if [[ -n "$RUNDISTCC" ]]; then
+    echo -e "$(tput cr)$(tput cuf 17)${BOLD}$DISTCC_THREADS${ALL_OFF}"
+  else
+    echo -e "$(tput cr)$(tput cuf 17)${BOLD}$THREADS${ALL_OFF}"
+  fi
   [[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
   echo -en "${BOLD} use distcc:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
-  if [[ -n "$DISTCC_THREADS" ]]; then
-    echo -en "${BOLD} distcc_threads:"
-    echo -e "$(tput cr)$(tput cuf 17)${BOLD}$DISTCC_THREADS${ALL_OFF}"
-  fi
+  [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+  echo -en "${BOLD} use namcap:"
+  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
   echo
   [[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
   [[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
