@@ -340,6 +340,12 @@ update() {
   arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
 }
 
+install() {
+  local mesg="Installing packages to the chroot..."
+  echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+  arch-nspawn "$CHROOTPATH64"/root pacman -S --needed --noconfirm $*
+}
+
 repocheck() {
   if [[ ! -f "$REPO/chroot_local.db.tar.gz" ]]; then
     local mesg="Local repo in chroot is empty. Build something first."
@@ -577,6 +583,10 @@ case "$1" in
   u)
     check2 && update
     ;;
+  i)
+    shift
+    check2 && install $*
+    ;;
   *)
     header
     echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
@@ -601,6 +611,7 @@ case "$1" in
     echo
     echo -e "${BOLD} --- MISCELLANEOUS ---"
     echo -e "${BOLD}   u) Update clean chroot${ALL_OFF}"
+    echo -e "${BOLD}   i) Install packages to the clean chroot${ALL_OFF}"
     echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
     ;;
 esac
