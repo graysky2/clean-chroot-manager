@@ -5,6 +5,10 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH64="/scratch/.chroot64"
 
+# Path to a default makepkg.conf that is copied to a new chroot. Note that
+# the options further down will override those in the default makepkg.conf.
+DEFAULT_MAKEPKG=
+
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
 THREADS=9

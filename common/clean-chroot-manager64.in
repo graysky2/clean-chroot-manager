@@ -102,6 +102,13 @@ check() {
     fi
   fi
 
+  if [[ -n "$DEFAULT_MAKEPKG" ]]; then
+    if [[ ! -f "$DEFAULT_MAKEPKG" ]]; then
+      local mesg="Invalid DEFAULT_MAKEPKG file defined in $SKEL"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
+  fi
+
   if [[ -n "$DISTCC_THREADS" ]]; then
     if [[ "$DISTCC_THREADS" =~ ^[0-9]+$ ]]; then
       # correctly setup
@@ -154,6 +161,10 @@ create() {
   fi
 
   # setup /etc/makepkg.conf in the chroot
+  if [[ -n "$DEFAULT_MAKEPKG" ]]; then
+    cp "$DEFAULT_MAKEPKG" "$CHROOTPATH64"/root/etc/makepkg.conf
+  fi
+
   if [[ -z "$PACKAGER" ]]; then
     sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
   else
@@ -318,7 +329,7 @@ indexit() {
   return 0
 }
 
-syncup() {	
+syncup() {
   # make sure the user and root copy of repo are in sync since invoking
   # without the -c switch will not on its own
   [[ -d "$CHROOTPATH64"/root/repo ]] &&
