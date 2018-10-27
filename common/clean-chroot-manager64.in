@@ -7,7 +7,6 @@ VERS='@VERSION@'
 PKG='clean-chroot-manager'
 SKEL="/usr/share/$PKG/ccm.skel"
 
-# Pretty colors thanks to /usr/bin/mkarchroot
 ### Begin insert of Arch script
 # Avoid any encoding problems
 export LANG=C
@@ -215,11 +214,11 @@ build() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -c -u -r "$CHROOTPATH64"; then
       exit 1
     fi
   else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -c -u -n -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -c -u -n -r "$CHROOTPATH64"; then
       exit 1
     fi
   fi
@@ -235,11 +234,11 @@ buildnc() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64"; then
       exit 1
     fi
   else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64"; then
       exit 1
     fi
   fi
@@ -424,7 +423,7 @@ distcc_check() {
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1; }
 
-    # need to prefix the call to /usr/bin/makechrootpkg with threads value
+    # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/44827
     THREADS=$DISTCC_THREADS
 
