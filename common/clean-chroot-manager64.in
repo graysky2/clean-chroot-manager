@@ -120,10 +120,10 @@ check() {
   # identify status of testing repo
   PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
   if [[ -f "$PACFILE" ]]; then
-    if [[ $(grep '^#\[testing\]' "$PACFILE") ]]; then
+    if grep -q '^#\[testing\]' "$PACFILE"; then
       # testing repo is not enabled
       export TESTING="Disabled"
-    elif [[ $(grep '^\[testing\]' "$PACFILE") ]]; then
+    elif grep -q '^\[testing\]' "$PACFILE"; then
       # testing repo is enabled
       export TESTING="Enabled"
     fi
@@ -198,7 +198,7 @@ check2() {
 
 addit() {
   #[[ -d "$CHROOTPATH64/$USER/repo" ]] || mkdir "$CHROOTPATH64/$USER/repo"
-  if ! rsync -rlxDu --exclude "*.log" *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
+  if ! rsync -rlxDu --exclude "*.log" ./*.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
     local mesg="could not add packages to local repo"
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
@@ -247,7 +247,7 @@ buildnc() {
 indexit() {
   # if this is the first time package has been successfully built
   # then append the local repo to the chroot's pacman.conf
-  if [[ -z $(grep clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf) ]]; then
+  if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
       # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
@@ -293,7 +293,7 @@ syncup() {
 
   # also need a safeguard for users invoking `ccm S` one a fresh chroot to insure
   # that the user's pacman.conf also contains the entry for [chroot_local]
-  if [[ -z $(grep clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf) ]]; then
+  if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
       # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
@@ -318,7 +318,7 @@ repocheck() {
 list() {
   local mesg="Listing out packages in chroot repo..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  ls -lh "$REPO" | grep pkg.tar
+  ls -lhF -I 'chroot*' "$REPO"
 }
 
 delete() {
