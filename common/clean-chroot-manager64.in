@@ -197,13 +197,9 @@ check2() {
 }
 
 addit() {
-  if [[ -d "$CHROOTPATH64/$USER/repo" ]]; then
-    if ! rsync -rlxDu --exclude "*.log" *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
-      exit 1
-    fi
-  else
-    # TODO generation of a clean working copy for $USER for now just fail if there isn't one
-    local mesg="$CHROOTPATH64/$USER/repo is not yet present so build something first to generate it."
+  #[[ -d "$CHROOTPATH64/$USER/repo" ]] || mkdir "$CHROOTPATH64/$USER/repo"
+  if ! rsync -rlxDu --exclude "*.log" *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
+    local mesg="could not add packages to local repo"
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
   fi
@@ -260,7 +256,7 @@ indexit() {
 
   # setup a local repo and add adjust files in chroot
   [[ ! -d "$CHROOTPATH64"/root/repo ]] && mkdir "$CHROOTPATH64"/root/repo
-  local mesg="Adding package to chroot repo..."
+  local mesg="Adding all packages in current dir to chroot repo..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   # it could be that the user is building for both i686 and x86_64
