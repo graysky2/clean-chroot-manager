@@ -49,11 +49,15 @@ Preview settings. Show some bits about the chroot itself.
 .TP
 .B
 s
-Run makepkg in build mode under the chroot. The equivalent of `makepkg \fB-src\fP` in the chroot.
+Run makepkg in build mode under the chroot. The equivalent of `makepkg \fB-s\fP` in the chroot.
 .TP
 .B
 S
 Run makepkg in build mode under the chroot but do not clean it. Useful if building a series of packages with highly similar deps.
+.TP
+.B
+R
+Repackage the current package if built. The equivalent of `makepkg \fB-sR\fP` in the chroot.
 .TP
 .B
 t
@@ -74,7 +78,7 @@ One way is to simply define a directory to mount as tmpfs like so in /etc/fstab:
 .PP
 .nf
 .fam C
- tmpfs /scratch tmpfs nodev,size=10G 0 0
+ tmpfs /scratch tmpfs nodev,size=20G 0 0
 
 .fam T
 .fi

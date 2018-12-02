@@ -21,15 +21,16 @@ $XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocati
 | :---: | --- |
 | c | Create a clean chroot. |
 | cd | Create a clean chroot with distcc enabled (if you do not want to set up in the config file). |
-| n | Nuke the clean chroot (delete it and everything under it). |
-| t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
-| m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
-| s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -src` in the chroot. |
-| S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. |
-| l | List the contents of the local repo (i.e. the packages you built to date). |
 | d | Delete all packages in the local repo without nuking the entire chroot (i.e. the packages you built to date). |
-| u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
+| l | List the contents of the local repo (i.e. the packages you built to date). |
+| n | Nuke the clean chroot (delete it and everything under it). |
+| m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | p | Preview settings. Show some bits about the chroot itself. |
+| R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
+| s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. |
+| S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. |
+| t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
+| u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
 
 ## Example Usage
 Create a clean 64-bit chroot under the path defined in the aforementioned config file:
@@ -62,12 +63,11 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 
 ```
  alias ccm64='sudo ccm64'
- alias ccm32='sudo ccm32'
 ```
 * If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See $XDG_CONFIG_HOME/clean-chroot-manager.conf for setup instructions.
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
 
-`tmpfs /scratch tmpfs nodev,size=10G 0 0`
+`tmpfs /scratch tmpfs nodev,size=20G 0 0`
 
 In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories created, we can use a systemd tmpfile like so:
 ```

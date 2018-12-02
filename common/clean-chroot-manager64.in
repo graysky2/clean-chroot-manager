@@ -244,6 +244,26 @@ buildnc() {
   [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
 }
 
+buildR() {
+  # try to build the package
+  local mesg="Attempting to repackage..."
+  echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
+  if [[ -z "$RUNNAMCAP" ]]; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64" -- -R; then
+      exit 1
+    fi
+  else
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64" -- -R; then
+      exit 1
+    fi
+  fi
+
+  # makepkg can can fail to build without throwing an error code so stop if
+  # no .pkg.tar* is present in the dir
+  [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
+}
+
 indexit() {
   # if this is the first time package has been successfully built
   # then append the local repo to the chroot's pacman.conf
@@ -468,6 +488,14 @@ case "$1" in
   p)
     header && distcc_check && preview
     ;;
+  R)
+    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+      mesg="No chroot has been created/nothing to repackage. Aborting."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      exit 1
+    fi
+    buildR && indexit && syncup
+    ;;
   s)
     distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -502,8 +530,9 @@ case "$1" in
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
     echo
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-    echo -e "${BOLD}   s) Run makepkg in clean chroot (default)${ALL_OFF}"
-    echo -e "${BOLD}   S) Run makepkg in clean chroot but do not clean first${ALL_OFF}"
+    echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
+    echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
+    echo -e "${BOLD}   R) Repackage (passes '-- -R' to default)${ALL_OFF}"
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
     echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
