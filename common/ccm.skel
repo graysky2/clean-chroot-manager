@@ -17,7 +17,7 @@ PACKAGER=""
 # for CFLAGS= and will be mirror automatically for the CXXFLAGS= therein.
 #
 # The default value for reference is:
-# "-march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt"
+# "-march=x86-64 -mtune=generic -O2 -pipe -fno-plt"
 CFLAGS=""
 
 # Set this variable to anything if you want to run namcap on the built package
