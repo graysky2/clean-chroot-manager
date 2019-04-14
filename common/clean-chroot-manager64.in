@@ -174,7 +174,7 @@ create() {
         -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
 
       # also may need /etc/hosts from the native environment if the user defined
-      # distcc slaves by hostname rather than by ip addy
+      # distcc node by hostname rather than by ip addy
       [[ -f /etc/hosts ]] && cp /etc/hosts "$CHROOTPATH64"/root/etc
     fi
   fi

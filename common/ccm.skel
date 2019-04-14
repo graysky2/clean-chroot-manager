@@ -32,7 +32,7 @@ RUNNAMCAP=
 
 # Set this to anything if you want makepkg to build through distcc for faster
 # compilation. You must have distcc installed and properly configured on your
-# native environment (not within the chroot) as well as on each of the slaves
+# native environment (not within the chroot) as well as on each of the volunteers
 # you define below.
 #
 # Alternatively, you can invoke ccm with the 'cd' flag to create the chroot
@@ -42,13 +42,13 @@ RUNNAMCAP=
 RUNDISTCC=
 
 # This is only needed for users planning to build with distcc. Take care to
-# include the localhost plus all distcc slaves you define below. Don't over-
+# include the localhost plus all volunteers you define below. Don't over-
 # think this one. Performance doesn't suffer if you over-shoot the value to
-# account for physical core + 1 on the localhost and slaves.
+# account for physical core + 1 on the localhost and volunteers
 DISTCC_THREADS=
 
 # Define all machines in the distcc cluster below using the distcc syntax of:
 # "hostname/threads" and remember to list localhost/n first, followed by your
-# slave nodes listed in decreasing order of CPU power. Additional supported
+# volunteer nodes listed in decreasing order of CPU power. Additional supported
 # options are passed through, see the manpage for distcc.
 DISTCC_HOSTS="localhost/9 foo/8 bar/4"
