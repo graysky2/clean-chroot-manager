@@ -14,7 +14,7 @@ For example, let's say that we want to build "bar" from the AUR. "Bar" has a bui
 AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 
 ## Setup
-$XDG_CONFIG_HOME/clean-chroot-manager.conf will be created on the first invocation of ccm and contains all user managed settings. Edit this file prior to running ccm a second time. Make sure the user running ccm has sudo rights to execute /usr/bin/clean-chroot-manager or /usr/bin/ccm.
+`$XDG_CONFIG_HOME/clean-chroot-manager.conf` will be created on the first invocation of ccm and contains all user managed settings. Edit this file prior to running ccm a second time. Make sure the user running ccm has sudo rights to execute `/usr/bin/clean-chroot-manager` or `/usr/bin/ccm`.
 
 ## Options
 | Command | Description |
@@ -38,11 +38,6 @@ Create a clean 64-bit chroot under the path defined in the aforementioned config
 $ sudo ccm64 c
 ```
 
-Create a clean 32-bit chroot under the path defined in the aforementioned config file:
-```
-$ sudo ccm32 c
-```
-
 Attempt to build the package in the clean 64-bit chroot. If successful, the package will be added to a local pacman repo inside the chroot so that it will be available for use as a dependency for building other packages:
 ```
  $ cd /path/to/PKGBUILD
@@ -64,16 +59,15 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 ```
  alias ccm64='sudo ccm64'
 ```
-* If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See $XDG_CONFIG_HOME/clean-chroot-manager.conf for setup instructions.
+* If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See `$XDG_CONFIG_HOME/clean-chroot-manager.conf` for setup instructions.
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
 
 `tmpfs /scratch tmpfs nodev,size=20G 0 0`
 
-In order to have the expected `CHROOTPATH64` and `CHROOTPATH32` directories created, we can use a systemd tmpfile like so:
+In order to have the expected `CHROOTPATH64` directory created, we can use a systemd tmpfile like so:
 ```
 /etc/tmpfiles.d/ccm_dirs.conf
 d /scratch/.chroot64 0755 facade users -
-d /scratch/.chroot32 0755 facade users -
 
 Note that this is only needed if the location of the chroots are on a volatile filesystem like tmpfs.
 ```
