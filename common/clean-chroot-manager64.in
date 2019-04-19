@@ -170,7 +170,7 @@ create() {
   if [[ -n "$RUNDISTCC" ]]; then
     if [[ $DISTCCFAIL -ne 1 ]]; then
       sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-        -i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+        -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
         -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
 
       # also may need /etc/hosts from the native environment if the user defined
