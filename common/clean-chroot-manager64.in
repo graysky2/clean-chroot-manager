@@ -131,7 +131,7 @@ check() {
 }
 
 create() {
-  if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+  if [ -f "$CHROOTPATH64"/root/.*-chroot ]; then
     local mesg="Working directory $CHROOTPATH64 already exists."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
   fi
@@ -207,7 +207,7 @@ create() {
 }
 
 check2() {
-  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+  if [ ! -f "$CHROOTPATH64"/root/.*-chroot ]; then
     local mesg="No chroot found. Create a chroot first using the 'c' option and try again."
     echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
@@ -287,9 +287,15 @@ indexit() {
   # then append the local repo to the chroot's pacman.conf
   if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to chroot
-    sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
-      "$CHROOTPATH64"/root/etc/pacman.conf
+    if grep -qF '[testing]' "$CHROOTPATH64"/root/etc/pacman.conf; then
+      sed -i '/\[testing\]/i \
+        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+        "$CHROOTPATH64"/root/etc/pacman.conf
+    else
+      sed -i '/\[core\]/i \
+        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+        "$CHROOTPATH64"/root/etc/pacman.conf
+    fi
   fi
 
   # setup a local repo and add adjust files in chroot
@@ -333,9 +339,15 @@ syncup() {
   # that the user's pacman.conf also contains the entry for [chroot_local]
   if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to chroot
-    sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
-      "$CHROOTPATH64/$USER"/etc/pacman.conf
+    if grep -qF '[testing]' "$CHROOTPATH64"/root/etc/pacman.conf; then
+      sed -i '/\[testing\]/i \
+        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+        "$CHROOTPATH64"/root/etc/pacman.conf
+    else
+      sed -i '/\[core\]/i \
+        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+        "$CHROOTPATH64"/root/etc/pacman.conf
+    fi
   fi
 }
 
@@ -397,7 +409,7 @@ testing() {
 }
 
 preview() {
-  [[ -f "$CHROOTPATH64"/root/.arch-chroot ]] && \
+  [ -f "$CHROOTPATH64"/root/.*-chroot ] && \
     PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}" || \
     PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
   echo -en "${BOLD} chroot path:"
@@ -516,7 +528,7 @@ case "$1" in
     ;;
   s)
     distcc_check
-    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    if [ ! -f "$CHROOTPATH64"/root/.*-chroot ]; then
       mesg="No chroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       mesg=
@@ -525,7 +537,7 @@ case "$1" in
     build && indexit && syncup
     ;;
   S)
-    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    if [ ! -f "$CHROOTPATH64"/root/.*-chroot ]; then
       mesg="No chroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       mesg=
