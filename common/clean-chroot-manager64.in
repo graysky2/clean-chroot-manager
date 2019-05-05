@@ -580,7 +580,7 @@ case "$1" in
       mesg=
       create
     fi
-    update && build && indexit && syncup
+    build && indexit && update && syncup
     ;;
   S)
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -589,7 +589,7 @@ case "$1" in
       mesg=
       create
     fi
-    update && buildnc && indexit && syncup
+    buildnc && indexit && update && syncup
     ;;
   u)
     check2 && update
