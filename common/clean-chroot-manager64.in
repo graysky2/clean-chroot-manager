@@ -147,7 +147,7 @@ create() {
       fi
     fi
   else
-    # not asking to use distcc so proceed with normal schroot
+    # not asking to use distcc so proceed with normal chroot
     if ! mkarchroot "$CHROOTPATH64"/root base-devel; then
       exit 1
     fi
@@ -358,7 +358,7 @@ delete() {
   local mesg="Deleting all packages and index in chroot repo..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-  # remove all files from the repo including pacakges and databases
+  # remove all files from the repo including packages and databases
   rm -rf "${REPO:?}"/*
 
   # modify pacman.conf so we don't error out due to missing databases
