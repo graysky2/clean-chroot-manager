@@ -91,11 +91,6 @@ check() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
 
-    if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
-      local mesg="BTRFS targets for building are not supported."
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-    fi
-
     REPO="$CHROOTPATH64/root/repo"
 
     if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -428,10 +423,56 @@ header() {
   echo
 }
 
+##
+#  Copied from https://git.archlinux.org/devtools.git/tree/lib/archroot.sh
+##
+
+##
+#  Returns if the $path is a the root of a btrfs subvolume (including
+#           the top-level subvolume).
+#
+#  usage  : is_subvolume( $path )
+#  return : true if it is, false if not
+##
+is_subvolume() {
+	[[ -e "$1" && "$(stat -f -c %T "$1")" == btrfs && "$(stat -c %i "$1")" == 256 ]]
+}
+
+##
+#  Find all btrfs subvolumes under and including $path and delete them.
+#
+#  usage  : subvolume_delete_recursive( $path )
+#  return : 0 if it was successful, 1 if not.
+##
+subvolume_delete_recursive() {
+	local subvol
+	is_subvolume "$1" || return 0
+	while IFS= read -d $'\0' -r subvol; do
+		if ! subvolume_delete_recursive "$subvol"; then
+			return 1
+		fi
+	done < <(find "$1" -mindepth 1 -xdev -depth -inum 256 -print0)
+	if ! btrfs subvolume delete "$1" &>/dev/null; then
+		error "Unable to delete subvolume %s" "$subvol"
+		return 1
+	fi
+	return 0
+}
+
 nuke() {
   local mesg="Nuking the chroot..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  rm -rf "${CHROOTPATH64:?}"/*
+  if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
+    for i in "$CHROOTPATH64"/*; do
+      if [ -d "$i" ]; then
+        subvolume_delete_recursive "$i" || return -1
+      else
+        rm -f "$i"
+      fi
+    done
+  else
+    rm -rf "${CHROOTPATH64:?}"/*
+  fi
 }
 
 distcc_check() {
