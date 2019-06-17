@@ -232,60 +232,31 @@ addit() {
 build() {
   local mesg="Attempting to build package..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-
-  if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -c -u -r "$CHROOTPATH64"; then
-      exit 1
-    fi
-  else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -c -u -n -r "$CHROOTPATH64"; then
-      exit 1
-    fi
+  
+  makechrootpkg_opt="$1"
+  makepkg_opt="$2"
+  [[ -z "$RUNNAMCAP" ]] && namcap_opt="" || namcap_opt="-n"
+  
+  if [[ -n "$TMP_BUILDDIR" ]];then
+    local mesg="Building in $TMP_BUILDDIR..."
+    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    mkdir -p "$TMP_BUILDDIR"
+    makechrootpkg_opt="$makechrootpkg_opt -d '$TMP_BUILDDIR:/build'"
+  fi
+  
+  if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt; then
+    exit 1
   fi
 
   # makepkg can can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
   [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
-}
-
-buildnc() {
-  # try to build the package
-  local mesg="Attempting to build package..."
-  echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-
-  if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64"; then
-      exit 1
-    fi
-  else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64"; then
-      exit 1
-    fi
+  
+  if [[ -n "$TMP_BUILDDIR" ]];then
+    local mesg="Deleting $TMP_BUILDDIR..."
+    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    rm -rf "$TMP_BUILDDIR"
   fi
-
-  # makepkg can can fail to build without throwing an error code so stop if
-  # no .pkg.tar* is present in the dir
-  [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
-}
-
-buildR() {
-  # try to build the package
-  local mesg="Attempting to repackage..."
-  echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-
-  if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64" -- -R; then
-      exit 1
-    fi
-  else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64" -- -R; then
-      exit 1
-    fi
-  fi
-
-  # makepkg can can fail to build without throwing an error code so stop if
-  # no .pkg.tar* is present in the dir
-  [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
 }
 
 indexit() {
@@ -570,7 +541,7 @@ case "$1" in
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       exit 1
     fi
-    buildR && indexit && syncup
+    build "" "-R" && indexit && syncup
     ;;
   s)
     distcc_check
@@ -580,7 +551,7 @@ case "$1" in
       mesg=
       create
     fi
-    build && indexit && update && syncup
+    build "-c" && indexit && update && syncup
     ;;
   S)
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -589,7 +560,7 @@ case "$1" in
       mesg=
       create
     fi
-    buildnc && indexit && update && syncup
+    build && indexit && update && syncup
     ;;
   u)
     check2 && update
