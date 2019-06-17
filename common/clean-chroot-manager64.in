@@ -95,6 +95,11 @@ check() {
       local mesg="Invalid OLD_PKGDIR defined in $CFGFILE"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
+    
+    if [[ -n "$TMP_BUILDDIR" ]] [[ ! -d "$TMP_BUILDDIR" ]]; then
+      local mesg="TMP_BUILDDIR defined in $CFGFILE does not exist"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
 
     REPO="$CHROOTPATH64/root/repo"
 
@@ -245,7 +250,6 @@ build() {
   if [[ -n "$TMP_BUILDDIR" ]];then
     local mesg="Building in $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mkdir -p "$TMP_BUILDDIR"
     makechrootpkg_opt="$makechrootpkg_opt -d $TMP_BUILDDIR:/build"
   fi
   
@@ -254,7 +258,7 @@ build() {
   if [[ -n "$TMP_BUILDDIR" ]];then
     local mesg="Deleting $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    rm -rf "$TMP_BUILDDIR"
+    rm -rf "$TMP_BUILDDIR"/*
   fi
 
   . PKGBUILD

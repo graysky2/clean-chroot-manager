@@ -9,7 +9,7 @@ CHROOTPATH64="/scratch/.chroot64"
 OLD_PKGDIR="/scratch/.old"
 
 # Set this to an in-memory path such as /tmp/build to build in memory. The 
-# directory will be created automatically if required.
+# directory must exist with user write permissions.
 TMP_BUILDDIR=
 
 # Path to a default makepkg.conf that is copied to a new chroot. Note that
