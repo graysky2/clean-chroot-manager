@@ -90,6 +90,11 @@ check() {
       local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
+    
+    if [[ ! -d "$OLD_PKGDIR" ]]; then
+      local mesg="Invalid OLD_PKGDIR defined in $CFGFILE"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
 
     REPO="$CHROOTPATH64/root/repo"
 
@@ -265,7 +270,7 @@ indexit() {
   if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file:///repo\n' \
       "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
@@ -278,12 +283,19 @@ indexit() {
   # in which case we don't want to pollute the pure x86_64 repo
   # with i686 packages so only process 'x86_64' and 'any' types
   GLOBIGNORE="*namcap.log"
+  . PKGBUILD
   for i in *.pkg.tar*; do
+    if ! echo $i | grep -q $pkgver;then
+        mv $i $OLD_PKGDIR
+        continue
+    fi
     if [[ "$i" = *i686.pkg.tar* ]]; then
       continue
     else
+      existing_pkg=$(echo $i | sed -r "s/(.*)-$pkgver.*/\1/")
+      rm -f "$REPO/${existing_pkg}*" || true
       cp "$i" "$REPO"
-      repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$i" || exit 1
+      repo-add "$REPO"/local-repo.db.tar.gz "$REPO/$i" || exit 1
 
       # ensure that the chroot package matches the live pacman cache package
       # which avoids checksum errors if the user builds the same $pkgname-$pkgver
@@ -307,11 +319,11 @@ syncup() {
     rsync -ax "$CHROOTPATH64"/root/repo/ "$CHROOTPATH64/$USER"/repo/
 
   # also need a safeguard for users invoking `ccm S` one a fresh chroot to insure
-  # that the user's pacman.conf also contains the entry for [chroot_local]
+  # that the user's pacman.conf also contains the entry for [local-repo]
   if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file:///repo\n' \
       "$CHROOTPATH64/$USER"/etc/pacman.conf
   fi
 }
@@ -329,7 +341,7 @@ install() {
 }
 
 repocheck() {
-  if [[ ! -f "$REPO/chroot_local.db.tar.gz" ]]; then
+  if [[ ! -f "$REPO/local-repo.db.tar.gz" ]]; then
     local mesg="Local repo in chroot is empty. Build something first."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1

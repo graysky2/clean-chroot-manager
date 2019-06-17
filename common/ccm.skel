@@ -5,7 +5,11 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH64="/scratch/.chroot64"
 
-# Set this to /tmp/build to build in memory.
+# Directory where old packages will be moved.
+OLD_PKGDIR="/scratch/.old"
+
+# Set this to an in-memory path such as /tmp/build to build in memory. The 
+# directory will be created automatically if required.
 TMP_BUILDDIR=
 
 # Path to a default makepkg.conf that is copied to a new chroot. Note that
