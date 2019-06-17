@@ -246,22 +246,23 @@ build() {
     local mesg="Building in $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     mkdir -p "$TMP_BUILDDIR"
-    makechrootpkg_opt="$makechrootpkg_opt -d '$TMP_BUILDDIR:/build'"
+    makechrootpkg_opt="$makechrootpkg_opt -d $TMP_BUILDDIR:/build"
   fi
   
-  if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt; then
-    exit 1
-  fi
-
-  # makepkg can can fail to build without throwing an error code so stop if
-  # no .pkg.tar* is present in the dir
-  [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
+  PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt || true
   
   if [[ -n "$TMP_BUILDDIR" ]];then
     local mesg="Deleting $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     rm -rf "$TMP_BUILDDIR"
   fi
+
+  . PKGBUILD
+  # makepkg can fail to build without throwing an error code so stop if
+  # no .pkg.tar* is present in the dir
+  [[ -n $(find . -maxdepth 1 -type f -name "*$pkgver*.pkg.tar*") ]] || exit 1
+
+  return 0
 }
 
 indexit() {
