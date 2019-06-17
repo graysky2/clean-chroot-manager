@@ -96,8 +96,8 @@ check() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
     
-    if [[ -n "$TMP_BUILDDIR" ]] [[ ! -d "$TMP_BUILDDIR" ]]; then
-      local mesg="TMP_BUILDDIR defined in $CFGFILE does not exist"
+    if [[ -n "$TMP_BUILDDIR" ]] && [[ ! -d "$TMP_BUILDDIR" ]]; then
+      local mesg="TMP_BUILDDIR ($TMP_BUILDDIR) defined in $CFGFILE does not exist"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
 
@@ -291,15 +291,15 @@ indexit() {
   . PKGBUILD
   for i in *.pkg.tar*; do
     if ! echo $i | grep -q $pkgver;then
-        mv $i $OLD_PKGDIR
+        mv -v $i $OLD_PKGDIR
         continue
     fi
     if [[ "$i" = *i686.pkg.tar* ]]; then
       continue
     else
       existing_pkg=$(echo $i | sed -r "s/(.*)-$pkgver.*/\1/")
-      rm -f "$REPO/${existing_pkg}*" || true
-      cp "$i" "$REPO"
+      rm -vf "$REPO/${existing_pkg}"* || true
+      cp -v "$i" "$REPO"
       repo-add "$REPO"/local-repo.db.tar.gz "$REPO/$i" || exit 1
 
       # ensure that the chroot package matches the live pacman cache package
