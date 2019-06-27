@@ -301,9 +301,9 @@ indexit() {
       existing_pkg=$(echo $i | sed -r "s/(.*)-$pkgver.*/\1/")
       find "$REPO" -name "${existing_pkg}*" -not -name "*${pkgver}*" -delete -print
       
-      [[ -f "$REPO/$i" ]] && [[ "$(md5sum "$i")" == "$(md5sum "$REPO/$i")" ]] && echo "File unchanged" && continue
+      [[ -f "$REPO/$i" ]] && [[ "$(md5sum "$i" | cut -d' ' -f1)" == "$(md5sum "$REPO/$i" | cut -d' ' -f1)" ]] && echo "File '$REPO/$i' unchanged" && continue
       
-      cp -v "$i" "$REPO"
+      cp -v "$i" "$REPO" && \
       repo-add "$REPO"/local-repo.db.tar.gz "$REPO/$i" || exit 1
 
       # ensure that the chroot package matches the live pacman cache package
