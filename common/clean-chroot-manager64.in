@@ -242,24 +242,21 @@ addit() {
 build() {
   local mesg="Attempting to build package..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  
+
   makechrootpkg_opt="$1"
   makepkg_opt="$2"
   [[ -z "$RUNNAMCAP" ]] && namcap_opt="" || namcap_opt="-n"
-  
+
   if [[ -n "$TMP_BUILDDIR" ]];then
     local mesg="Building in $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    local mesg="Cleaning $TMP_BUILDDIR..."
+    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    find "$TMP_BUILDDIR" -mindepth 1 -maxdepth 1 | xargs -L1 -I{} bash -c "echo rm '{}' && rm -rf '{}'"
     makechrootpkg_opt="$makechrootpkg_opt -d $TMP_BUILDDIR:/build"
   fi
-  
+
   PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt || true
-  
-  if [[ -n "$TMP_BUILDDIR" ]];then
-    local mesg="Deleting $TMP_BUILDDIR..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    rm -rf "$TMP_BUILDDIR"/*
-  fi
 
   . PKGBUILD
   # makepkg can fail to build without throwing an error code so stop if
@@ -299,7 +296,7 @@ indexit() {
       continue
     else
       existing_pkg=$(echo $i | sed -r "s/(.*)-$pkgver.*/\1/")
-      find "$REPO" -name "${existing_pkg}*" -not -name "*${pkgver}*" -delete -print
+      find "$REPO" -name "${existing_pkg}*" -not -name "*${pkgver}*" -exec rm -vf {} \;
       
       [[ -f "$REPO/$i" ]] && [[ "$(md5sum "$i" | cut -d' ' -f1)" == "$(md5sum "$REPO/$i" | cut -d' ' -f1)" ]] && echo "File '$REPO/$i' unchanged" && continue
       
