@@ -250,18 +250,27 @@ build() {
   if [[ -n "$TMP_BUILDDIR" ]];then
     local mesg="Building in $TMP_BUILDDIR..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    local mesg="Cleaning $TMP_BUILDDIR..."
-    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    find "$TMP_BUILDDIR" -mindepth 1 -maxdepth 1 | xargs -L1 -I{} bash -c "echo rm '{}' && rm -rf '{}'"
     makechrootpkg_opt="$makechrootpkg_opt -d $TMP_BUILDDIR:/build"
   fi
 
-  PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt || true
+  PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg $namcap_opt -u $makechrootpkg_opt -r "$CHROOTPATH64" -- $makepkg_opt
+  ret=$?
 
   . PKGBUILD
   # makepkg can fail to build without throwing an error code so stop if
   # no .pkg.tar* is present in the dir
   [[ -n $(find . -maxdepth 1 -type f -name "*$pkgver-$pkgrel*.pkg.tar*") ]] || exit 1
+  
+  if [[ -n "$TMP_BUILDDIR" ]];then
+    if [[ $ret -eq 0 ]];then
+        local mesg="Cleaning $TMP_BUILDDIR..."
+        echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+        find "$TMP_BUILDDIR" -mindepth 1 -maxdepth 1 | xargs -L1 -I{} bash -c "echo rm '{}' && rm -rf '{}'"
+    else
+        local mesg="Build failed. Leaving $TMP_BUILDDIR as is."
+        echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    fi
+  fi
 
   return 0
 }
