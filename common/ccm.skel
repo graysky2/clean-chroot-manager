@@ -18,3 +18,7 @@ DEFAULT_MAKEPKG="/etc/makepkg.conf"
 
 # Set this variable to anything if you want to run namcap on the built package
 RUNNAMCAP=
+
+# Set these variales to set the corresponding directories.
+#export SRCDEST=/builds/sources
+#export LOGDEST=/builds/logs
