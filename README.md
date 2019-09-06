@@ -1,5 +1,5 @@
 # clean-chroot-manager
-Wrapper scripts to manage clean chroots (x86_64 and i686) for building packages under Arch Linux.
+Wrapper script to manage buildroots when building packages under Arch Linux.
 
 ## Why use it?
 Ccm provides several advantages over the standard arch-build scripts:
