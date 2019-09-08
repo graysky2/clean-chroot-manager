@@ -203,7 +203,7 @@ indexit() {
   if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file:///repo\n' \
+      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file://$CHROOTPATH64/root/repo\n' \
       "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
@@ -260,7 +260,7 @@ syncup() {
   if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to chroot
     sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file:///repo\n' \
+      # Added by clean-chroot-manager\n[local-repo]\nSigLevel = Never\nServer = file://$CHROOTPATH64/root/repo\n' \
       "$CHROOTPATH64/$USER"/etc/pacman.conf
   fi
 }
