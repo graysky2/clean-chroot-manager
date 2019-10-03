@@ -24,7 +24,6 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 | d | Delete all packages in the local repo without nuking the entire chroot (i.e. the packages you built to date). |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | n | Nuke the clean chroot (delete it and everything under it). |
-| m | Toggle [multilib] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | p | Preview settings. Show some bits about the chroot itself. |
 | R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. |
