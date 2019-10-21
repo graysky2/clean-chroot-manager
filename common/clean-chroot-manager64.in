@@ -7,7 +7,6 @@ VERS='@VERSION@'
 PKG='clean-chroot-manager'
 SKEL="/usr/share/$PKG/ccm.skel"
 
-# Pretty colors thanks to /usr/bin/mkarchroot
 ### Begin insert of Arch script
 # Avoid any encoding problems
 export LANG=C
@@ -92,12 +91,8 @@ check() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
 
-    if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
-      local mesg="BTRFS targets for building are not supported."
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-    fi
-
-    REPO="$CHROOTPATH64/root/repo"
+    # if user defined a trailing slash remove it here
+    REPO="${CHROOTPATH64%/}/root/repo"
 
     if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
       # correctly setup
@@ -132,10 +127,10 @@ check() {
   # identify status of testing repo
   PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
   if [[ -f "$PACFILE" ]]; then
-    if [[ $(grep '^#\[testing\]' "$PACFILE") ]]; then
+    if grep -q '^#\[testing\]' "$PACFILE"; then
       # testing repo is not enabled
       export TESTING="Disabled"
-    elif [[ $(grep '^\[testing\]' "$PACFILE") ]]; then
+    elif grep -q '^\[testing\]' "$PACFILE"; then
       # testing repo is enabled
       export TESTING="Enabled"
     fi
@@ -148,19 +143,18 @@ create() {
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
   fi
   
-  local pkgs=('base' 'base-devel')
+  local pkgs=('base-devel')
 
   if [[ -n "$RUNDISTCC" ]]; then
+    pkgs+=('distcc')
     # override threads with distcc value if building with distcc
     THREADS=$DISTCC_THREADS
-    pkgs+=('distcc')
   fi
 
   if [[ -n "$USE_CCACHE" ]] ; then
     pkgs+=('ccache')
   fi
 
-  # not asking to use distcc so proceed with normal schroot
   if ! mkarchroot "$CHROOTPATH64"/root ${pkgs[*]}; then
     exit 1
   fi
@@ -177,11 +171,11 @@ create() {
   if [[ -n "$RUNDISTCC" ]]; then
     if [[ $DISTCCFAIL -ne 1 ]]; then
       sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-        -i -e "/^DISTCC_HOSTS/ s,=\"\",=\"$DISTCC_HOSTS\"," \
+        -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
         -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
 
       # also may need /etc/hosts from the native environment if the user defined
-      # distcc slaves by hostname rather than by ip addy
+      # distcc node by hostname rather than by ip addy
       [[ -f /etc/hosts ]] && cp /etc/hosts "$CHROOTPATH64"/root/etc
     fi
   fi
@@ -194,6 +188,24 @@ create() {
   if [[ -n "$USE_CCACHE" ]]; then
     sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
   fi
+
+  ###
+  ### REMOVE ONCE zstd support is finalized
+  ### http://archlinux.2023198.n4.nabble.com/RFC-devtools-Changing-default-compression-method-to-zstd-td4722484i20.html
+  ###
+
+  sed -i -e 's/COMPRESSZ=(compress -c -f)/COMPRESSZ=(compress -c -f)\nCOMPRESSZST=(zstd -c -T0 -q -18 -)/' \
+    "$CHROOTPATH64"/root/etc/makepkg.conf
+  sed -i -e '/lzop/a \\t\t*tar.zst) ${COMPRESSZST[@]:-zstd -c -T0 -q -18 -} ;;' \
+    "$CHROOTPATH64"/root/usr/share/makepkg/util/compress.sh
+
+  if [[ -n "$PKGEXT" ]]; then
+    sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
+  fi
+
+  ###
+  ###
+  ###
 
   # enable pacman color output in chroot because I like it
   sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
@@ -208,13 +220,9 @@ check2() {
 }
 
 addit() {
-  if [[ -d "$CHROOTPATH64/$USER/repo" ]]; then
-    if ! rsync -rlxDu --exclude "*.log" *.pkg.tar* "$CHROOTPATH64"/root/repo/ &>/dev/null; then
-      exit 1
-    fi
-  else
-    # TODO generation of a clean working copy for $USER for now just fail if there isn't one
-    local mesg="$CHROOTPATH64/$USER/repo is not yet present so build something first to generate it."
+  #[[ -d "$CHROOTPATH64/$USER/repo" ]] || mkdir "$CHROOTPATH64/$USER/repo"
+  if ! rsync -rlxDu --exclude "*.log" ./*.pkg.tar* "$REPO"/ &>/dev/null; then
+    local mesg="could not add packages to local repo"
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
   fi
@@ -250,11 +258,31 @@ buildnc() {
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   if [[ -z "$RUNNAMCAP" ]]; then
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64"; then
       exit 1
     fi
   else
-    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 /usr/bin/makechrootpkg -u -n -r "$CHROOTPATH64"; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64"; then
+      exit 1
+    fi
+  fi
+
+  # makepkg can can fail to build without throwing an error code so stop if
+  # no .pkg.tar* is present in the dir
+  [[ -n $(find . -maxdepth 1 -type f -name '*.pkg.tar*') ]] || exit 1
+}
+
+buildR() {
+  # try to build the package
+  local mesg="Attempting to repackage..."
+  echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
+  if [[ -z "$RUNNAMCAP" ]]; then
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -r "$CHROOTPATH64" -- -R; then
+      exit 1
+    fi
+  else
+    if ! PACKAGER=$PACKAGER MAKEFLAGS=-j$THREADS nice -19 makechrootpkg -u -n -r "$CHROOTPATH64" -- -R; then
       exit 1
     fi
   fi
@@ -267,16 +295,16 @@ buildnc() {
 indexit() {
   # if this is the first time package has been successfully built
   # then append the local repo to the chroot's pacman.conf
-  if [[ -z $(grep clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf) ]]; then
+  if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to chroot
-    sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
+    sed -i "/\[testing\]/i \
+      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://$REPO\n" \
       "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
   # setup a local repo and add adjust files in chroot
-  [[ ! -d "$CHROOTPATH64"/root/repo ]] && mkdir "$CHROOTPATH64"/root/repo
-  local mesg="Adding package to chroot repo..."
+  [[ ! -d "$REPO" ]] && mkdir "$REPO"
+  local mesg="Adding all packages in current dir to chroot repo..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
   # it could be that the user is building for both i686 and x86_64
@@ -308,16 +336,16 @@ indexit() {
 syncup() {	
   # make sure the user and root copy of repo are in sync since invoking
   # without the -c switch will not on its own
-  [[ -d "$CHROOTPATH64"/root/repo ]] &&
-    rsync -ax "$CHROOTPATH64"/root/repo/ "$CHROOTPATH64/$USER"/repo/
+  [[ -d "$REPO" ]] &&
+    rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
 
-  # also need a safeguard for users invoking `ccm S` one a fresh chroot to insure
+  # also need a safeguard for users invoking `ccm S` once a fresh chroot to ensure
   # that the user's pacman.conf also contains the entry for [chroot_local]
-  if [[ -z $(grep clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf) ]]; then
+  if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to chroot
-    sed -i '/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file:///repo\n' \
-      "$CHROOTPATH64/$USER"/etc/pacman.conf
+    sed -i "/\[testing\]/i \
+      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
+      "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
   fi
 }
 
@@ -338,14 +366,14 @@ repocheck() {
 list() {
   local mesg="Listing out packages in chroot repo..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  ls -lh "$REPO" | grep pkg.tar
+  ls -lhF -I 'chroot*' "$REPO"
 }
 
 delete() {
   local mesg="Deleting all packages and index in chroot repo..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-  # remove all files from the repo including pacakges and databases
+  # remove all files from the repo including packages and databases
   rm -rf "${REPO:?}"/*
 
   # modify pacman.conf so we don't error out due to missing databases
@@ -417,10 +445,56 @@ header() {
   echo
 }
 
+##
+#  Copied from https://git.archlinux.org/devtools.git/tree/lib/archroot.sh
+##
+
+##
+#  Returns if the $path is a the root of a btrfs subvolume (including
+#           the top-level subvolume).
+#
+#  usage  : is_subvolume( $path )
+#  return : true if it is, false if not
+##
+is_subvolume() {
+	[[ -e "$1" && "$(stat -f -c %T "$1")" == btrfs && "$(stat -c %i "$1")" == 256 ]]
+}
+
+##
+#  Find all btrfs subvolumes under and including $path and delete them.
+#
+#  usage  : subvolume_delete_recursive( $path )
+#  return : 0 if it was successful, 1 if not.
+##
+subvolume_delete_recursive() {
+	local subvol
+	is_subvolume "$1" || return 0
+	while IFS= read -d $'\0' -r subvol; do
+		if ! subvolume_delete_recursive "$subvol"; then
+			return 1
+		fi
+	done < <(find "$1" -mindepth 1 -xdev -depth -inum 256 -print0)
+	if ! btrfs subvolume delete "$1" &>/dev/null; then
+		error "Unable to delete subvolume %s" "$subvol"
+		return 1
+	fi
+	return 0
+}
+
 nuke() {
   local mesg="Nuking the chroot..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  rm -rf "${CHROOTPATH64:?}"/*
+  if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
+    for i in "$CHROOTPATH64"/*; do
+      if [ -d "$i" ]; then
+        subvolume_delete_recursive "$i" || return -1
+      else
+        rm -f "$i"
+      fi
+    done
+  else
+    rm -rf "${CHROOTPATH64:?}"/*
+  fi
 }
 
 distcc_check() {
@@ -446,7 +520,7 @@ distcc_check() {
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1; }
 
-    # need to prefix the call to /usr/bin/makechrootpkg with threads value
+    # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/44827
     THREADS=$DISTCC_THREADS
 
@@ -495,6 +569,14 @@ case "$1" in
   p)
     header && distcc_check && preview
     ;;
+  R)
+    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+      mesg="No chroot has been created/nothing to repackage. Aborting."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      exit 1
+    fi
+    buildR && indexit && syncup
+    ;;
   s)
     distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -529,8 +611,9 @@ case "$1" in
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
     echo
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-    echo -e "${BOLD}   s) Run makepkg in clean chroot (default)${ALL_OFF}"
-    echo -e "${BOLD}   S) Run makepkg in clean chroot but do not clean first${ALL_OFF}"
+    echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
+    echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
+    echo -e "${BOLD}   R) Repackage (passes '-- -R' to default)${ALL_OFF}"
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
     echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
