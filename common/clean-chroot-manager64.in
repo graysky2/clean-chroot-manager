@@ -114,6 +114,11 @@ check() {
   fi
 
   if [[ -n "$USE_CCACHE" ]]; then
+    # /usr/bin/ccache must be present on the host system or else dev-tools scripts
+    # will throw an error.
+    # probably redundant to add a check here but might be more straight forward
+    # for users if we do... will leave it out for now.
+
       if  [[ ! -d "$CCACHE_DIR" ]]; then
         local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
         echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
@@ -333,7 +338,7 @@ indexit() {
   return 0
 }
 
-syncup() {	
+syncup() {
   # make sure the user and root copy of repo are in sync since invoking
   # without the -c switch will not on its own
   [[ -d "$REPO" ]] &&
@@ -407,32 +412,44 @@ testing() {
 }
 
 preview() {
-  [[ -f "$CHROOTPATH64"/root/.arch-chroot ]] && \
-    PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}" || \
+  if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+  else
     PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
-  echo -en "${BOLD} chroot path:"
+  fi
+
+  echo -en "${BOLD} buildroot path:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
-  echo
+
+  if [[ -n "$USE_CCACHE" ]]; then
+    CCSIZE="${BOLD}($(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+    echo -en "${BOLD} ccache path:"
+    echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CCACHE_DIR${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
+    echo
+  else
+    echo
+  fi
+
   echo -en "${BOLD} threads:"
   if [[ -n "$RUNDISTCC" ]]; then
     echo -e "$(tput cr)$(tput cuf 17)${BOLD}$DISTCC_THREADS${ALL_OFF}"
   else
     echo -e "$(tput cr)$(tput cuf 17)${BOLD}$THREADS${ALL_OFF}"
   fi
-  [[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use distcc:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
-  [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use namcap:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+
   [[ -z "$USE_CCACHE" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
   echo -en "${BOLD} use ccache:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
-  if [[ -n "$USE_CCACHE" ]]; then
-    echo -en "${BOLD} ccache_dir:"
-    echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CCACHE_DIR${ALL_OFF}"
-  fi
+
+  [[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+  echo -en "${BOLD} use distcc:"
+  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+
+  [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+  echo -en "${BOLD} use namcap:"
+  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
   echo
+
   [[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
   [[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
   [[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
@@ -497,6 +514,22 @@ nuke() {
   fi
 }
 
+cachepurge() {
+  local mesg="Purging ccache..."
+  echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+  if [[ $(stat -f -c %T "$CCACHE_DIR") == btrfs ]]; then
+    for i in "$CCACHE_DIR"/*; do
+      if [ -d "$i" ]; then
+        subvolume_delete_recursive "$i" || return -1
+      else
+        rm -f "$i"
+      fi
+    done
+  else
+    rm -rf "${CCACHE_DIR:?}"/*
+  fi
+}
+
 distcc_check() {
   # this is a catch-all function to check for a running distcc and to
   # override the THREADS value due to https://bugs.archlinux.org/task/44827
@@ -552,6 +585,9 @@ case "$1" in
     # force running with distcc to override the config file setting
     RUNDISTCC=y
     distcc_check && create
+    ;;
+  cp)
+    cachepurge
     ;;
   t)
     check2 && testing
@@ -609,6 +645,9 @@ case "$1" in
     echo -e "${BOLD}  cd) Create the clean chroot with distcc${ALL_OFF}"
     echo -e "${BOLD}   n) Nuke the clean chroot${ALL_OFF}"
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
+    echo
+    echo -e "${BOLD} Target: ${BLUE}$CCACHE_DIR${ALL_OFF}"
+    echo -e "${BOLD}  cp) Purge the ccache${ALL_OFF}"
     echo
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"

@@ -21,6 +21,7 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 | :---: | --- |
 | c | Create a clean chroot. |
 | cd | Create a clean chroot with distcc enabled (if you do not want to set up in the config file). |
+| cp | Purge all files in the CCACHE_DIR (optional if building with ccache). |
 | d | Delete all packages in the local repo without nuking the entire chroot (i.e. the packages you built to date). |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | n | Nuke the clean chroot (delete it and everything under it). |
