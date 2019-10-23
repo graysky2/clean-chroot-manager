@@ -92,10 +92,7 @@ check() {
     # if user defined a trailing slash remove it here
     REPO="${CHROOTPATH64%/}/root/repo"
 
-    if [[ "$THREADS" =~ ^[0-9]+$ ]]; then
-      # correctly setup
-      /bin/true
-    else
+    if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
       local mesg="Invalid setting for THREADS defined in $SKEL"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
     fi
@@ -152,44 +149,50 @@ create() {
   fi
 
   [[ -n "$USE_CCACHE" ]] && pkgs+=('ccache')
+  
+  [[ -f "$CUSTOM_PACMAN_CONF" ]] && insargs+=(-C "$CUSTOM_PACMAN_CONF")
+  [[ -f "$CUSTOM_MAKEPKG_CONF" ]] && insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
 
-  if ! mkarchroot "$CHROOTPATH64"/root "${pkgs[@]}"; then
+  if ! mkarchroot "${insargs[@]}" "$CHROOTPATH64"/root "${pkgs[@]}"; then
     exit 1
   fi
+  
+  # note that if using a custom makepkg.conf we assume the user set it up to
+  # his/her liking so do not modify it here
 
-  # setup /etc/makepkg.conf in the buildroot
-  if [[ -z "$PACKAGER" ]]; then
-    sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
-  else
-    sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
-      -i -e '/^#PACKAGER/ s,#,,' \
-      -i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," "$CHROOTPATH64"/root/etc/makepkg.conf
-  fi
-
-  if [[ -n "$RUNDISTCC" ]]; then
-    if [[ $DISTCCFAIL -ne 1 ]]; then
-      sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-        -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
-        -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
-
-      # also may need /etc/hosts from the native environment if the user defined
-      # distcc node by hostname rather than by ip addy
-      [[ -f /etc/hosts ]] && cp /etc/hosts "$CHROOTPATH64"/root/etc
+  if ! [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
+    # setup /etc/makepkg.conf in the buildroot
+    if [[ -z "$PACKAGER" ]]; then
+      sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
+    else
+      sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
+        -i -e '/^#PACKAGER/ s,#,,' \
+        -i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," "$CHROOTPATH64"/root/etc/makepkg.conf
     fi
+
+    if [[ -n "$RUNDISTCC" ]]; then
+      if [[ $DISTCCFAIL -ne 1 ]]; then
+        sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+          -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
+          -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
+      fi
+    fi
+
+    [[ -n "$CFLAGS" ]] &&
+      sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
+      -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
+
+    [[ -n "$USE_CCACHE" ]] &&
+      sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
+
+    [[ -n "$PKGEXT" ]] &&
+      sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
   fi
 
-  [[ -n "$CFLAGS" ]] &&
-    sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
-    -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
-
-  [[ -n "$USE_CCACHE" ]] &&
-    sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
-  
-  [[ -n "$PKGEXT" ]] &&
-    sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
-  
-  # enable pacman color output in buildroot because I like it
-  sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
+  if ! [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
+    # enable pacman color output in buildroot because I like it
+    sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
+  fi
 }
 
 check2() {
@@ -215,7 +218,8 @@ build() {
   [[ -n "$RUNNAMCAP" ]] && args+=('-n')
   [[ -n "$USE_CCACHE" ]] && args+=(-d "$CCACHE_DIR:/build/.ccache")
 
-  if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+  #if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+  if ! nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
     exit 1
   fi
 
@@ -339,14 +343,17 @@ preview() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
     PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
   else
-    PRESENT="${BOLD}${RED}(Not present)${ALL_OFF}"
+    PRESENT="${BOLD}${RED}(None present)${ALL_OFF}"
   fi
 
   echo -en "${BOLD} buildroot path:"
   echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
 
   if [[ -n "$USE_CCACHE" ]]; then
-    CCSIZE="${BOLD}($(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+    #CCSIZE="${BOLD}($(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
+    # if null contents write out a pretty message
+    [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(None present)${ALL_OFF}"
     echo -en "${BOLD} ccache path:"
     echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CCACHE_DIR${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
     echo

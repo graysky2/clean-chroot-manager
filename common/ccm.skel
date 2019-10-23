@@ -59,3 +59,9 @@ USE_CCACHE=
 
 # Set the directory where ccache stores its data
 CCACHE_DIR="/scratch/ccache"
+
+# Optionally uncomment and define a custom pacman.conf and/or a custom
+# makepkg.conf for the buildroot using a fully qualified path below.
+# The defualt is to leave these two undefined to use the default systems values
+# CUSTOM_PACMAN_CONF='/usr/share/devtools/pacman-extra.conf'
+# CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg-x86_64.conf'
