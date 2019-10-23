@@ -144,32 +144,21 @@ create() {
 
   if [[ -n "$RUNDISTCC" ]]; then
     pkgs+=('distcc')
-    # override threads with distcc value if building with distcc
-    THREADS=$DISTCC_THREADS
   fi
 
   [[ -n "$USE_CCACHE" ]] && pkgs+=('ccache')
-  
+
   [[ -f "$CUSTOM_PACMAN_CONF" ]] && insargs+=(-C "$CUSTOM_PACMAN_CONF")
   [[ -f "$CUSTOM_MAKEPKG_CONF" ]] && insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
 
   if ! mkarchroot "${insargs[@]}" "$CHROOTPATH64"/root "${pkgs[@]}"; then
     exit 1
   fi
-  
+
   # note that if using a custom makepkg.conf we assume the user set it up to
   # his/her liking so do not modify it here
 
   if ! [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
-    # setup /etc/makepkg.conf in the buildroot
-    if [[ -z "$PACKAGER" ]]; then
-      sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
-    else
-      sed -i -e "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$THREADS\"/" \
-        -i -e '/^#PACKAGER/ s,#,,' \
-        -i -e "/^PACKAGER/ s,=.*,=\"$PACKAGER\"," "$CHROOTPATH64"/root/etc/makepkg.conf
-    fi
-
     if [[ -n "$RUNDISTCC" ]]; then
       if [[ $DISTCCFAIL -ne 1 ]]; then
         sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
@@ -218,9 +207,18 @@ build() {
   [[ -n "$RUNNAMCAP" ]] && args+=('-n')
   [[ -n "$USE_CCACHE" ]] && args+=(-d "$CCACHE_DIR:/build/.ccache")
 
-  #if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
-  if ! nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
-    exit 1
+  if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
+    # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
+    # so honor those values here by not prefixing the call to makechrootpkg
+    if ! nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+      exit 1
+    fi
+  else
+    # not using a custom makepkg.conf which means we're using the one on the live system so
+    # we honor the values for MAKEFLAGS and PACKAGER in ~/.config/clean-chroot-manager.conf
+    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+      exit 1
+    fi
   fi
 
   # makepkg can can fail to build without throwing an error code so stop if
@@ -341,51 +339,65 @@ testing() {
 
 preview() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    HERE=1
     PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
   else
     PRESENT="${BOLD}${RED}(None present)${ALL_OFF}"
   fi
 
   echo -en "${BOLD} buildroot path:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CHROOTPATH64${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
+  echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH64/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
 
-  if [[ -n "$USE_CCACHE" ]]; then
-    #CCSIZE="${BOLD}($(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
-    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
-    # if null contents write out a pretty message
-    [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(None present)${ALL_OFF}"
-    echo -en "${BOLD} ccache path:"
-    echo -e "$(tput cr)$(tput cuf 17)${BLUE}$CCACHE_DIR${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
-    echo
-  else
-    echo
+  if [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
+    echo -en "${BOLD} custom config:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_PACMAN_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
   fi
 
-  echo -en "${BOLD} threads:"
-  if [[ -n "$RUNDISTCC" ]]; then
-    echo -e "$(tput cr)$(tput cuf 17)${BOLD}$DISTCC_THREADS${ALL_OFF}"
-  else
-    echo -e "$(tput cr)$(tput cuf 17)${BOLD}$THREADS${ALL_OFF}"
+  if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
+   echo -en "${BOLD} custom config:"
+   echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
+   # use threads value from the custom config
+   BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
+   THREADS="${BR_THREADS//[^0-9]/}"
   fi
 
-  [[ -z "$USE_CCACHE" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use ccache:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+  if [[ HERE -eq 1 ]]; then
+    echo
+    echo -en "${BOLD} buildroot threads:"
+    echo -e "$(tput cr)$(tput cuf 25)${BOLD}$THREADS${ALL_OFF}"
 
-  [[ -z "$RUNDISTCC" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use distcc:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
+    echo -en "${BOLD} buildroot [testing]:"
+    if [[ $(grep -c '^#\[testing]' "$CHROOTPATH64"/root/etc/pacman.conf) -eq 0 ]]; then
+      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+    else
+      BAR="${RED}No${ALL_OFF}${BOLD}"
+    fi
 
-  [[ -z "$RUNNAMCAP" ]] && BAR="${RED}No${ALL_OFF}${BOLD}" || BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
-  echo -en "${BOLD} use namcap:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$BAR${ALL_OFF}"
-  echo
+    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
+    echo -en "${BOLD} buildroot distcc:"
+    if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!distcc') -eq 0 ]]; then
+      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+    else
+      BAR="${RED}No${ALL_OFF}${BOLD}"
+    fi
+    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
 
-  [[ "$TESTING" = "Disabled" ]] && TESTING="${BOLD}${RED}Disabled${ALL_OFF}"
-  [[ "$TESTING" = "Enabled" ]] && TESTING="${BOLD}${GREEN}Enabled${ALL_OFF}"
-  [[ -z "$TESTING" ]] && TESTING="${BOLD}${RED}N/A${ALL_OFF}"
-  echo -en "${BOLD} [testing]:"
-  echo -e "$(tput cr)$(tput cuf 17)${BLUE}$TESTING${ALL_OFF}"
+    echo -en "${BOLD} buildroot ccache:"
+    if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!ccache') -eq 0 ]]; then
+      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+    else
+      BAR="${RED}No${ALL_OFF}${BOLD}"
+    fi
+    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
+
+    if [[ -n "$CCACHE_DIR" ]]; then
+      CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
+      # if null contents write out a pretty message
+      [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}"
+      echo -en "${BOLD} buildroot ccache path:"
+      echo -e "$(tput cr)$(tput cuf 25)${BLUE}$CCACHE_DIR/${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
+    fi
+  fi
 }
 
 header() {

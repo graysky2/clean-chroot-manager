@@ -5,6 +5,31 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH64="/scratch/.chroot64"
 
+# Set this variable to anything if you want to run namcap on the built package
+RUNNAMCAP=
+
+# Set this to anything if you want makepkg to support ccache in the buildroot
+# For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
+#
+# If you're using a custom makepkg.conf (see below) you must enable ccache there
+# since doing it here will have no effect. Against see the note below.
+USE_CCACHE=
+
+# If you would like to use ccache when building, define the directory where
+# ccache will store its data and note that you 
+CCACHE_DIR="/scratch/ccache"
+
+# Optionally uncomment and define a custom pacman.conf and/or a custom
+# makepkg.conf for the buildroot using a fully qualified path below.
+# The default is to leave these two undefined to use the default systems values
+
+#CUSTOM_PACMAN_CONF='/usr/share/devtools/pacman-extra.conf'
+#CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg-x86_64.conf'
+
+# NOTE - if you defined a custom makepkg.conf above, ccm honors all the values
+# you defined in it so any of the variables below note only have an effect if you
+# are NOT using a custom makepkg.conf 
+
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
 THREADS=9
@@ -26,9 +51,6 @@ CFLAGS=""
 # If left blank, will use the default value of '.pkg.tar.xz' but the following
 # is much faster on multicore machines '.pkg.tar.zst'
 PKGEXT=
-
-# Set this variable to anything if you want to run namcap on the built package
-RUNNAMCAP=
 
 # Set this to anything if you want makepkg to build through distcc for faster
 # compilation. You must have distcc installed and properly configured on your
@@ -52,16 +74,3 @@ DISTCC_THREADS=
 # volunteer nodes listed in decreasing order of CPU power. Additional supported
 # options are passed through, see the manpage for distcc.
 DISTCC_HOSTS="localhost/9 foo/8 bar/4"
-
-# Set this to anything if you want makepkg to support ccache
-# For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
-USE_CCACHE=
-
-# Set the directory where ccache stores its data
-CCACHE_DIR="/scratch/ccache"
-
-# Optionally uncomment and define a custom pacman.conf and/or a custom
-# makepkg.conf for the buildroot using a fully qualified path below.
-# The defualt is to leave these two undefined to use the default systems values
-# CUSTOM_PACMAN_CONF='/usr/share/devtools/pacman-extra.conf'
-# CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg-x86_64.conf'
