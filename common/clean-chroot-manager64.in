@@ -151,9 +151,7 @@ create() {
     THREADS=$DISTCC_THREADS
   fi
 
-  if [[ -n "$USE_CCACHE" ]] ; then
-    pkgs+=('ccache')
-  fi
+  [[ -n "$USE_CCACHE" ]] && pkgs+=('ccache')
 
   if ! mkarchroot "$CHROOTPATH64"/root "${pkgs[@]}"; then
     exit 1
@@ -180,33 +178,16 @@ create() {
     fi
   fi
 
-  if [[ -n "$CFLAGS" ]]; then
+  [[ -n "$CFLAGS" ]] &&
     sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
-      -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
-  fi
+    -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
 
-  if [[ -n "$USE_CCACHE" ]]; then
+  [[ -n "$USE_CCACHE" ]] &&
     sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
-  fi
-
-  ###
-  ### REMOVE ONCE zstd support is finalized
-  ### http://archlinux.2023198.n4.nabble.com/RFC-devtools-Changing-default-compression-method-to-zstd-td4722484i20.html
-  ###
-
-  sed -i -e 's/COMPRESSZ=(compress -c -f)/COMPRESSZ=(compress -c -f)\nCOMPRESSZST=(zstd -c -T0 -q -18 -)/' \
-    "$CHROOTPATH64"/root/etc/makepkg.conf
-  sed -i -e '/lzop/a \\t\t*tar.zst) ${COMPRESSZST[@]:-zstd -c -T0 -q -18 -} ;;' \
-    "$CHROOTPATH64"/root/usr/share/makepkg/util/compress.sh
-
-  if [[ -n "$PKGEXT" ]]; then
+  
+  [[ -n "$PKGEXT" ]] &&
     sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
-  fi
-
-  ###
-  ###
-  ###
-
+  
   # enable pacman color output in buildroot because I like it
   sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
 }
