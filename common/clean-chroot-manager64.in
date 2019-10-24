@@ -22,7 +22,6 @@ if [[ -t 2 ]]; then
     GREEN="${BOLD}$(tput setaf 2)"
     RED="${BOLD}$(tput setaf 1)"
     YELLOW="${BOLD}$(tput setaf 3)"
-
   else
     ALL_OFF="\e[1;0m"
     BOLD="\e[1;1m"
@@ -53,10 +52,11 @@ HOMEDIR="$(getent passwd "$USER" | cut -d: -f6)"
 CFGFILE=${CFGFILE:-$HOMEDIR/.config/$PKG.conf}
 
 # dependency checks probably not needed but they do not hurt
-command -v mkarchroot >/dev/null 2>&1 || {
-mesg="devtools is required to use this script. Aborting."
-echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-exit 1; }
+if ! command -v mkarchroot >/dev/null 2>&1; then
+  mesg="devtools is required to use this script. Aborting."
+  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+  exit 1
+fi
 
 check() {
   if [[ $EUID -ne 0 ]]; then
@@ -105,20 +105,19 @@ check() {
     fi
   fi
 
-  if [[ -n "$USE_CCACHE" ]]; then
-    # /usr/bin/ccache must be present on the host system or else dev-tools scripts
-    # will throw an error.
-    # probably redundant to add a check here but might be more straight forward
-    # for users if we do... will leave it out for now.
+  # ccache must be present on the host system or else dev-tools scripts
+  # will throw an error.
+  # probably redundant to add a check here but might be more straight forward
+  # for users if we do... will leave it out for now.
 
-      if  [[ ! -d "$CCACHE_DIR" ]]; then
-        local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
-        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-      fi
-      if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
-        local mesg="User $USER has no write permissions on $CCACHE_DIR"
-        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-      fi
+  if  [[ ! -d "$CCACHE_DIR" ]]; then
+    local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+  fi
+
+  if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
+    local mesg="User $USER has no write permissions on $CCACHE_DIR"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
   fi
 
   # identify status of testing repo
@@ -146,8 +145,7 @@ create() {
     pkgs+=('distcc')
   fi
 
-  [[ -n "$USE_CCACHE" ]] && pkgs+=('ccache')
-
+  [[ -d "$CCACHE_DIR" ]] && pkgs+=('ccache')
   [[ -f "$CUSTOM_PACMAN_CONF" ]] && insargs+=(-C "$CUSTOM_PACMAN_CONF")
   [[ -f "$CUSTOM_MAKEPKG_CONF" ]] && insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
 
@@ -155,9 +153,8 @@ create() {
     exit 1
   fi
 
-  # note that if using a custom makepkg.conf we assume the user set it up to
-  # his/her liking so do not modify it here
-
+  # if using a custom makepkg.conf we assume the options therein are set by
+  # the user so do not modify here
   if ! [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     if [[ -n "$RUNDISTCC" ]]; then
       if [[ $DISTCCFAIL -ne 1 ]]; then
@@ -171,7 +168,7 @@ create() {
       sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
       -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
 
-    [[ -n "$USE_CCACHE" ]] &&
+    [[ -d "$CCACHE_DIR" ]] &&
       sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
 
     [[ -n "$PKGEXT" ]] &&
@@ -205,7 +202,7 @@ build() {
   args=('-u')
   [[ $CLEANIT -eq 1 ]] && args+=('-c')
   [[ -n "$RUNNAMCAP" ]] && args+=('-n')
-  [[ -n "$USE_CCACHE" ]] && args+=(-d "$CCACHE_DIR:/build/.ccache")
+  [[ -d "$CCACHE_DIR" ]] && args+=(-d "$CCACHE_DIR:/build/.ccache")
 
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
@@ -227,13 +224,13 @@ build() {
 }
 
 indexit() {
-  # if this is the first time package has been successfully built
-  # then append the local repo to the buildroot's pacman.conf
+  # if this is the first time a package has been successfully built,
+  # append the local repo to the buildroot's pacman.conf
   if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to buildroot
     sed -i "/\[testing\]/i \
       # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://$REPO\n" \
-      "$CHROOTPATH64"/root/etc/pacman.conf
+          "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
   # setup a local repo and add adjust files in buildroot
@@ -246,17 +243,12 @@ indexit() {
   # with i686 packages so only process 'x86_64' and 'any' types
   GLOBIGNORE="*namcap.log"
   for i in *.pkg.tar*; do
-    if [[ "$i" = *i686.pkg.tar* ]]; then
-      continue
-    else
-      cp "$i" "$REPO"
-      repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$i" || exit 1
+    cp "$i" "$REPO"
+    repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$i" || exit 1
 
-      # ensure that the buildroot package matches the live pacman cache package
-      # which avoids checksum errors if the user builds the same $pkgname-$pkgver
-      # more than once
-      [[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
-    fi
+    # make sure that the buildroot package matches the live pacman cache package
+    # to avoid a checksum error if the user builds the same package wo/ bumping the pkgver
+    [[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
   done
   unset GLOBIGNORE
 
@@ -268,7 +260,7 @@ indexit() {
 }
 
 syncup() {
-  # make sure the user and root copy of repo are in sync since invoking
+  # make sure the user copy and root copy of the repo are in parity since invoking
   # without the -c switch will not on its own
   [[ -d "$REPO" ]] &&
     rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
@@ -279,7 +271,7 @@ syncup() {
     # add a local repo to buildroot
     sed -i "/\[testing\]/i \
       # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
-      "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+          "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
   fi
 }
 
@@ -318,8 +310,10 @@ testing() {
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     sed -i -e '/^#\[testing\]/ s,#,,' \
       -i -e '/^\[testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+
     sed -i -e '/^#\[community-testing\]/ s,#,,' \
       -i -e '/^\[community-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+
     local mesg="Forcing an update to use any affected packages..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
@@ -327,15 +321,18 @@ testing() {
     # switch off testing
     local mesg="Disabling [testing] in buildroot..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
     sed -i -e '/^\[testing\]/ s,\[,#\[,' \
       -i -e '/^#\[testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+
     sed -i -e '/^\[community-testing\]/ s,\[,#\[,' \
       -i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+
     local mesg="Downgrading affected packages if any..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     arch-nspawn "$CHROOTPATH64"/root pacman -Syuu --noconfirm
-  fi
-}
+    fi
+  }
 
 preview() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -354,11 +351,11 @@ preview() {
   fi
 
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
-   echo -en "${BOLD} custom config:"
-   echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
-   # use threads value from the custom config
-   BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
-   THREADS="${BR_THREADS//[^0-9]/}"
+    echo -en "${BOLD} custom config:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
+    # use threads value from the custom config
+    BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
+    THREADS="${BR_THREADS//[^0-9]/}"
   fi
 
   if [[ HERE -eq 1 ]]; then
@@ -417,7 +414,7 @@ header() {
 #  return : true if it is, false if not
 ##
 is_subvolume() {
-[[ -e "$1" && "$(stat -f -c %T "$1")" == btrfs && "$(stat -c %i "$1")" == 256 ]]
+  [[ -e "$1" && "$(stat -f -c %T "$1")" == btrfs && "$(stat -c %i "$1")" == 256 ]]
 }
 
 ##
@@ -447,7 +444,7 @@ nuke() {
   if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
     for i in "$CHROOTPATH64"/*; do
       if [ -d "$i" ]; then
-        subvolume_delete_recursive "$i" || return -1
+        subvolume_delete_recursive "$i" || return 255
       else
         rm -f "$i"
       fi
@@ -463,7 +460,7 @@ cachepurge() {
   if [[ $(stat -f -c %T "$CCACHE_DIR") == btrfs ]]; then
     for i in "$CCACHE_DIR"/*; do
       if [ -d "$i" ]; then
-        subvolume_delete_recursive "$i" || return -1
+        subvolume_delete_recursive "$i" || return 255
       else
         rm -f "$i"
       fi
@@ -476,10 +473,11 @@ cachepurge() {
 distcc_check() {
   # this is a catch-all function to check for a running distcc and to
   # override the THREADS value due to https://bugs.archlinux.org/task/44827
+  # which to is not fixed even though it is closed
 
-  # if the buildroot is already created, see if distcc is enabled and if it is
+  # if the buildroot is already created, see if distcc is enabled and
   # simply set RUNDISTCC which may or may not be set in the config file
-  # if the user created the buildroot with the 'cd' swtich
+  # if the user created the buildroot with the 'cd' switch
 
   if [[ -f "$CHROOTPATH64/root/etc/makepkg.conf" ]]; then
     if grep -q -i '^BUILDENV=(distcc' "$CHROOTPATH64/root/etc/makepkg.conf"; then
@@ -491,10 +489,11 @@ distcc_check() {
   # RUNDISTCC can also be forced via the 'cd' swtich as well as set in the config
   if [[ -n "$RUNDISTCC" ]]; then
     # fail if distcc_threads aren't defined
-    [[ -n "$DISTCC_THREADS" ]] || {
-    mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc. Aborting."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1; }
+    if [[ -n "$DISTCC_THREADS" ]]; then
+      mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc. Aborting."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      exit 1
+    fi
 
     # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/44827
@@ -632,4 +631,5 @@ case "$1" in
     echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
     ;;
 esac
+
 # vim:set ts=2 sw=2 et:

@@ -5,19 +5,15 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH64="/scratch/.chroot64"
 
-# Set this variable to anything if you want to run namcap on the built package
+# Set this variable to anything if you want to run namcap on the built package.
 RUNNAMCAP=
 
-# Set this to anything if you want makepkg to support ccache in the buildroot
-# For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
+# To build with ccache in the buildroot, uncomment and define the directory where
+# ccache will store its data below.  If you're using a custom makepkg.conf
+# (see below), you MUST enable ccache that file in addition to defining the path
+# below. For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
 #
-# If you're using a custom makepkg.conf (see below) you must enable ccache there
-# since doing it here will have no effect. Against see the note below.
-USE_CCACHE=
-
-# If you would like to use ccache when building, define the directory where
-# ccache will store its data and note that you 
-CCACHE_DIR="/scratch/ccache"
+#CCACHE_DIR="/scratch/ccache"
 
 # Optionally uncomment and define a custom pacman.conf and/or a custom
 # makepkg.conf for the buildroot using a fully qualified path below.
@@ -27,32 +23,28 @@ CCACHE_DIR="/scratch/ccache"
 #CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg-x86_64.conf'
 
 # NOTE - if you defined a custom makepkg.conf above, ccm honors all the values
-# you defined in it so any of the variables below note only have an effect if you
-# are NOT using a custom makepkg.conf 
+# you defined in it so any of the variables below will only have an effect if
+# you are NOT using a custom makepkg.conf
 
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
 THREADS=9
 
-# If set, the value defined will be used in the chroot's /etc/makepkg.conf
-# for PACKAGER= which will be auto uncommented.
+# If set, the value defined will be used as in the buildroot's packages.
 PACKAGER=""
 
-# If set, the value defined will be used in the chroot's /etc/makepkg.conf
-# for CFLAGS= and will be mirrored automatically for the CXXFLAGS= therein.
+# If set, the value defined will be used in the buildroot's packages.
+# Note that CFLAGS will be mirrored automatically to define the CXXFLAGS.
 #
-# Arch default: "-march=x86-64 -mtune=generic -O2 -pipe -fno-plt"
-# If you like color while building, append -fdiagnostics-color=always like this:
-# "-march=x86-64 -mtune=generic -O2 -pipe -fno-plt -fdiagnostics-color=always"
+# For some color while building, append -fdiagnostics-color to the line like so:
+# "-march=x86-64 -O2 -pipe -fno-plt -fdiagnostics-color"
 #
 CFLAGS=""
 
 # Optionally define the format of compression for compiled packages.
-# If left blank, will use the default value of '.pkg.tar.xz' but the following
-# is much faster on multicore machines '.pkg.tar.zst'
 PKGEXT=
 
-# Set this to anything if you want makepkg to build through distcc for faster
+# Set this to anything if you want makepkg to build using distcc for faster
 # compilation. You must have distcc installed and properly configured on your
 # native environment (not within the chroot) as well as on each of the volunteers
 # you define below.
@@ -66,7 +58,7 @@ RUNDISTCC=
 # This is only needed for users planning to build with distcc. Take care to
 # include the localhost plus all volunteers you define below. Don't over-
 # think this one. Performance doesn't suffer if you over-shoot the value to
-# account for physical core + 1 on the localhost and volunteers
+# account for physical core + 1 on the localhost and volunteers.
 DISTCC_THREADS=
 
 # Define all machines in the distcc cluster below using the distcc syntax of:
