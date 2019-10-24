@@ -110,14 +110,20 @@ check() {
   # probably redundant to add a check here but might be more straight forward
   # for users if we do... will leave it out for now.
 
-  if  [[ ! -d "$CCACHE_DIR" ]]; then
-    local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-  fi
+  if [[ -z ${CCACHE_DIR+x} ]]; then
+    # no ccache is being used
+    true
+  else
+    # make sure we have a dir with correct permissions for ccache to use
+    if  [[ ! -d "$CCACHE_DIR" ]]; then
+      local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
 
-  if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
-    local mesg="User $USER has no write permissions on $CCACHE_DIR"
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
+      local mesg="User $USER has no write permissions on $CCACHE_DIR"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
   fi
 
   # identify status of testing repo
