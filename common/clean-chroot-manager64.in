@@ -495,7 +495,7 @@ distcc_check() {
   # RUNDISTCC can also be forced via the 'cd' swtich as well as set in the config
   if [[ -n "$RUNDISTCC" ]]; then
     # fail if distcc_threads aren't defined
-    if [[ -n "$DISTCC_THREADS" ]]; then
+    if [[ -z "$DISTCC_THREADS" ]]; then
       mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc. Aborting."
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       exit 1
