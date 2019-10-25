@@ -364,42 +364,39 @@ preview() {
     THREADS="${BR_THREADS//[^0-9]/}"
   fi
 
+  if [[ -n "$CCACHE_DIR" ]]; then
+    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
+    # if null contents write out a pretty message
+    [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}"
+    echo -en "${BOLD} ccache path:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CCACHE_DIR/${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
+  fi
+
   if [[ HERE -eq 1 ]]; then
     echo
     echo -en "${BOLD} buildroot threads:"
-    echo -e "$(tput cr)$(tput cuf 25)${BOLD}$THREADS${ALL_OFF}"
+    echo -e "$(tput cr)$(tput cuf 21)${BOLD}$THREADS${ALL_OFF}"
 
-    echo -en "${BOLD} buildroot [testing]:"
     if [[ $(grep -c '^#\[testing]' "$CHROOTPATH64"/root/etc/pacman.conf) -eq 0 ]]; then
-      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+      TESTING_C="${BOLD}${GREEN}[testing]${ALL_OFF}"
     else
-      BAR="${RED}No${ALL_OFF}${BOLD}"
+      TESTING_C="${RED}[testing]${ALL_OFF}${BOLD}"
     fi
 
-    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
-    echo -en "${BOLD} buildroot distcc:"
     if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!distcc') -eq 0 ]]; then
-      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+      DISTCC_C="${BOLD}${GREEN}distcc${ALL_OFF}"
     else
-      BAR="${RED}No${ALL_OFF}${BOLD}"
+      DISTCC_C="${RED}distcc${ALL_OFF}${BOLD}"
     fi
-    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
 
-    echo -en "${BOLD} buildroot ccache:"
     if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!ccache') -eq 0 ]]; then
-      BAR="${BOLD}${GREEN}Yes${ALL_OFF}"
+      CCACHE_C="${BOLD}${GREEN}ccache${ALL_OFF}"
     else
-      BAR="${RED}No${ALL_OFF}${BOLD}"
+      CCACHE_C="${RED}ccache${ALL_OFF}${BOLD}"
     fi
-    echo -e "$(tput cr)$(tput cuf 25)${BLUE}$BAR${ALL_OFF}"
 
-    if [[ -n "$CCACHE_DIR" ]]; then
-      CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
-      # if null contents write out a pretty message
-      [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}"
-      echo -en "${BOLD} buildroot ccache path:"
-      echo -e "$(tput cr)$(tput cuf 25)${BLUE}$CCACHE_DIR/${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
-    fi
+    echo -en "${BOLD} buildroot options:"
+    echo -e "$(tput cr)$(tput cuf 21)${BOLD}$TESTING_C  $DISTCC_C  $CCACHE_C${ALL_OFF}"
   fi
 }
 
