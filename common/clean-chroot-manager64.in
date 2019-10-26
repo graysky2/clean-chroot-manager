@@ -351,25 +351,25 @@ preview() {
   echo -en "${BOLD} buildroot path:"
   echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH64/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
 
+  if [[ -n "$CCACHE_DIR" ]]; then
+    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
+    # if null contents write out a pretty message
+    [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}" || CCSIZE="${BOLD}($CCSIZE)${ALL_OFF}"
+    echo -en "${BOLD} ccache path:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CCACHE_DIR/${ALL_OFF} $CCSIZE"
+  fi
+
   if [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
     echo -en "${BOLD} custom config:"
-    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_PACMAN_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
+    echo -e "$(tput cr)$(tput cuf 18)$CUSTOM_PACMAN_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
   fi
 
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     echo -en "${BOLD} custom config:"
-    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
+    echo -e "$(tput cr)$(tput cuf 18)$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
     # use threads value from the custom config
     BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
     THREADS="${BR_THREADS//[^0-9]/}"
-  fi
-
-  if [[ -n "$CCACHE_DIR" ]]; then
-    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
-    # if null contents write out a pretty message
-    [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}"
-    echo -en "${BOLD} ccache path:"
-    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CCACHE_DIR/${ALL_OFF}${BOLD} $CCSIZE${ALL_OFF}"
   fi
 
   if [[ HERE -eq 1 ]]; then
@@ -457,7 +457,7 @@ nuke() {
   fi
 }
 
-cachepurge() {
+purgecache() {
   local mesg="Purging ccache..."
   echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
   if [[ $(stat -f -c %T "$CCACHE_DIR") == btrfs ]]; then
@@ -531,8 +531,8 @@ case "$1" in
     RUNDISTCC=y
     distcc_check && create
     ;;
-  cp)
-    cachepurge
+  pc)
+    purgecache
     ;;
   t)
     check2 && testing
@@ -616,7 +616,7 @@ case "$1" in
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
     echo
     echo -e "${BOLD} Target: ${BLUE}$CCACHE_DIR${ALL_OFF}"
-    echo -e "${BOLD}  cp) Purge the ccache${ALL_OFF}"
+    echo -e "${BOLD}  pc) Purge the ccache${ALL_OFF}"
     echo
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
