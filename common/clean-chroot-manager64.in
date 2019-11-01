@@ -475,7 +475,7 @@ purgecache() {
 
 distcc_check() {
   # this is a catch-all function to check for a running distcc and to
-  # override the THREADS value due to https://bugs.archlinux.org/task/44827
+  # override the THREADS value due to https://bugs.archlinux.org/task/64349
   # which to is not fixed even though it is closed
 
   # if the buildroot is already created, see if distcc is enabled and
@@ -499,7 +499,7 @@ distcc_check() {
     fi
 
     # need to prefix the call to makechrootpkg with threads value
-    # https://bugs.archlinux.org/task/44827
+    # https://bugs.archlinux.org/task/64349
     THREADS=$DISTCC_THREADS
 
     # verify distcc is running and try to start it if not else fail
