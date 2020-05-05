@@ -516,44 +516,44 @@ distcc_check() {
   fi
 }
 
-check
-
 case "$1" in
   a)
-    check2 && addit && indexit
+    check && check2 && addit && indexit
     [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup
     ;;
   c)
-    distcc_check && create
+    check && distcc_check && create
     ;;
   cd)
     # force running with distcc to override the config file setting
+    check && distcc_check
     RUNDISTCC=y
-    distcc_check && create
+    create
     ;;
   pc)
-    purgecache
+    check && purgecache
     ;;
   t)
-    check2 && testing
+    check && check2 && testing
     # no need to call update since testing function handles this
     ;;
   d)
     mesg="Deleting all packages and index in buildroot repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     mesg=
-    check2 && repocheck && delete
+    check && check2 && repocheck && delete
     ;;
   l)
-    check2 && repocheck && list
+    check && check2 && repocheck && list
     ;;
   n)
-    nuke
+    check && nuke
     ;;
   p)
-    header && distcc_check && preview
+    check && header && distcc_check && preview
     ;;
   R)
+    check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created/nothing to repackage. Aborting."
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -569,7 +569,7 @@ case "$1" in
     build && indexit && syncup
     ;;
   s)
-    distcc_check
+    check && distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -583,9 +583,10 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    build && indexit && syncup
+    check && build && indexit && syncup
     ;;
   S)
+    check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -599,10 +600,10 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    build && indexit && syncup
+    check && build && indexit && syncup
     ;;
   u)
-    check2 && update
+    check && check2 && update
     ;;
   *)
     header
