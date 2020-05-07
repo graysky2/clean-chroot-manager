@@ -67,7 +67,7 @@ Deletes everything under the top level of the 64-bit chroot effectively removing
 In order to have the expected `CHROOTPATH64` directory created, we can use a systemd tmpfile like so:
 ```
 /etc/tmpfiles.d/ccm_dirs.conf
-d /scratch/.chroot64 0755 facade users -
+d /scratch/.chroot64 0750 foo users -
 
 Note that this is only needed if the location of the chroots are on a volatile filesystem like tmpfs.
 ```

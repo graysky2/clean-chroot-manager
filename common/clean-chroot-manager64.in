@@ -49,6 +49,7 @@ fi
 HOMEDIR="$(getent passwd "$USER" | cut -d: -f6)"
 
 # allow user to override from cli thus using multiple files as needed
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOMEDIR/.config}"
 CFGFILE=${CFGFILE:-$HOMEDIR/.config/$PKG.conf}
 
 # dependency checks probably not needed but they do not hurt
@@ -72,13 +73,13 @@ check() {
   if [[ ! -f "$CFGFILE" ]]; then
     echo -e "${BOLD}------------------------------------------------------------${ALL_OFF}"
     echo -e "${BOLD} No config file found so creating a fresh one in:${ALL_OFF}"
-    echo -e "${BOLD}${BLUE} $HOMEDIR/.config/$PKG.conf${ALL_OFF}"
+    echo -e "${BOLD}${BLUE} $XDG_CONFIG_HOME/$PKG.conf${ALL_OFF}"
     echo
     echo -e "${BOLD} Edit this file before invoking $PKG again.${ALL_OFF}"
     echo -e "${BOLD}------------------------------------------------------------${ALL_OFF}"
     su -c "install -Dm644 $SKEL $CFGFILE" "$USER"
     CORES=$(( $(nproc --all) + 1 ))
-    sed -i "/^THREADS=/ s,9,$CORES," "$HOMEDIR/.config/$PKG.conf"
+    sed -i "/^THREADS=/ s,9,$CORES," "$XDG_CONFIG_HOME/$PKG.conf"
     exit 0
   else
     . "$CFGFILE"
