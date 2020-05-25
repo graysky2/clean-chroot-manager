@@ -1,7 +1,10 @@
 #!/bin/bash
+
+#
 # clean-chroot-manager by graysky
 #
-# See the man page for more.
+
+# shellcheck disable=1090
 
 VERS='@VERSION@'
 PKG='clean-chroot-manager'
