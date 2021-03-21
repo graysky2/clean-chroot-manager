@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #
 # clean-chroot-manager by graysky
 #
@@ -94,7 +93,25 @@ check() {
     fi
 
     # if user defined a trailing slash remove it here
-    REPO="${CHROOTPATH64%/}/root/repo"
+    if [[ -n "$REPO" ]]; then
+      REPO="${REPO%/}"
+      # check that external repo actually exists
+      if [[ ! -d "$REPO" ]]; then
+        local mesg="The external repo configured in $CFGFILE does not exist. Please create the path first."
+        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      fi
+      # check write permissions for external path
+      if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
+        local mesg="User $USER has no write permissions on $REPO"
+        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      fi
+    else
+      REPO="${CHROOTPATH64%/}/root/repo"
+    fi
+    
+    if [[ -z "$REPO_NAME" ]]; then
+      REPO_NAME="chroot_local"
+    fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
       local mesg="Invalid setting for THREADS defined in $SKEL"
@@ -237,10 +254,10 @@ build() {
 indexit() {
   # if this is the first time a package has been successfully built,
   # append the local repo to the buildroot's pacman.conf
-  if ! grep -q clean-chroot "$CHROOTPATH64"/root/etc/pacman.conf; then
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH64"/root/etc/pacman.conf; then
     # add a local repo to buildroot
     sed -i "/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://$REPO\n" \
+      # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
           "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
@@ -255,7 +272,7 @@ indexit() {
   GLOBIGNORE="*namcap.log"
   for i in *.pkg.tar*; do
     cp "$i" "$REPO"
-    repo-add "$REPO"/chroot_local.db.tar.gz "$REPO/$i" || exit 1
+    repo-add "$REPO"/"$REPO_NAME".db.tar.gz "$REPO/$i" || exit 1
 
     # make sure that the buildroot package matches the live pacman cache package
     # to avoid a checksum error if the user builds the same package wo/ bumping the pkgver
@@ -272,17 +289,23 @@ indexit() {
 
 syncup() {
   # make sure the user copy and root copy of the repo are in parity since invoking
-  # without the -c switch will not on its own
-  [[ -d "$REPO" ]] &&
+  # without the -c switch will not on its own, but only if the repo resides in the chroot
+  [[ "$REPO" == "${CHROOTPATH64%/}/root/repo" ]] &&  [[ -d "$REPO" ]] &&
     rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
 
   # also need a safeguard for users invoking `ccm S` once a fresh buildroot to ensure
   # that the user's pacman.conf also contains the entry for [chroot_local]
-  if ! grep -q clean-chroot "$CHROOTPATH64/$USER"/etc/pacman.conf; then
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to buildroot
-    sed -i "/\[testing\]/i \
+    if $REPO="${CHROOTPATH64%/}/root/repo"; then
+      sed -i "/\[testing\]/i \
       # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
           "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+    else
+      sed -i "/\[testing\]/i \
+      # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://$REPO\n" \
+          "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+    fi
   fi
 }
 
@@ -293,7 +316,7 @@ update() {
 }
 
 repocheck() {
-  if [[ ! -f "$REPO/chroot_local.db.tar.gz" ]]; then
+  if [[ ! -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
     local mesg="Local repo in buildroot is empty. Build something first."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
@@ -506,6 +529,7 @@ distcc_check() {
     # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/64349
     THREADS=$DISTCC_THREADS
+
   fi
 }
 
