@@ -342,8 +342,8 @@ testing() {
     local mesg="Downgrading affected packages if any..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     arch-nspawn "$CHROOTPATH64"/root pacman -Syuu --noconfirm
-    fi
-  }
+  fi
+}
 
 preview() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
@@ -509,6 +509,17 @@ distcc_check() {
   fi
 }
 
+etime() {
+  if pidof -q -x makechrootpkg; then
+    etime=$( ps --no-headers -o %t $(pidof -x sudo ccm | awk '{ print $(NF) }') )
+    echo -en "${BOLD} elasped time:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}${etime/      /}${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
+  else
+    mesg="Cannot determine pid of running build. Aborting."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    exit 1
+  fi
+}
 case "$1" in
   a)
     check && check2 && addit && indexit
@@ -544,6 +555,9 @@ case "$1" in
     ;;
   p)
     check && header && distcc_check && preview
+    ;;
+  ti)
+    check && header && etime
     ;;
   R)
     check
@@ -609,23 +623,26 @@ case "$1" in
     echo -e "${BOLD}   n) Nuke the clean buildroot${ALL_OFF}"
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
     echo
-    echo -e "${BOLD} Target: ${BLUE}$CCACHE_DIR${ALL_OFF}"
-    echo -e "${BOLD}  pc) Purge the ccache${ALL_OFF}"
-    echo
+    if [[ -n "$CCACHE_DIR" ]]; then
+      echo -e "${BOLD} Target: ${BLUE}$CCACHE_DIR${ALL_OFF}"
+      echo -e "${BOLD}  pc) Purge the ccache${ALL_OFF}"
+      echo
+    fi
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-    echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
-    echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
     echo -e "${BOLD}   R) Repackage (passes '-- -R' to default)${ALL_OFF}"
+    echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
+    echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
     echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
     echo -e "${BOLD}   a) Add packages in current dir to the local repo${ALL_OFF}"
-    echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
     echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
+    echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
     echo
     echo -e "${BOLD} --- MISCELLANEOUS ---"
-    echo -e "${BOLD}   u) Update clean buildroot${ALL_OFF}"
     echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
+    echo -e "${BOLD}  ti) Show run time of current build${ALL_OFF}"
+    echo -e "${BOLD}   u) Update clean buildroot${ALL_OFF}"
     ;;
 esac
 

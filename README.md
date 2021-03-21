@@ -19,6 +19,7 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 ## Options
 | Command | Description |
 | :---: | --- |
+| a | Add packages in current dir to the local repo. |
 | c | Create a clean chroot. |
 | cd | Create a clean chroot with distcc enabled (if you do not want to set up in the config file). |
 | cp | Purge all files in the CCACHE_DIR (optional if building with ccache). |
@@ -30,6 +31,7 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. |
 | S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. |
 | t | Toggle [testing] and [community-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
+| ti | Show run time of current build. |
 | u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
 
 ## Example Usage
