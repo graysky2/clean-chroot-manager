@@ -61,7 +61,7 @@ if ! command -v mkarchroot >/dev/null 2>&1; then
   exit 1
 fi
 
-check() {
+check_config() {
   if [[ $EUID -ne 0 ]]; then
     local mesg="This script must be called as root!"
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
@@ -90,27 +90,6 @@ check() {
     if [[ ! -d "$CHROOTPATH64" ]]; then
       local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-    fi
-
-    # if user defined a trailing slash remove it here
-    if [[ -n "$REPO" ]]; then
-      REPO="${REPO%/}"
-      # check that external repo actually exists
-      if [[ ! -d "$REPO" ]]; then
-        local mesg="The external repo configured in $CFGFILE does not exist. Please create the path first."
-        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-      fi
-      # check write permissions for external path
-      if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
-        local mesg="User $USER has no write permissions on $REPO"
-        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
-      fi
-    else
-      REPO="${CHROOTPATH64%/}/root/repo"
-    fi
-    
-    if [[ -z "$REPO_NAME" ]]; then
-      REPO_NAME="chroot_local"
     fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -160,6 +139,32 @@ check() {
   fi
 }
 
+check_buildroot() {
+  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    local mesg="No buildroot found. Create one using the 'c' option and try again."
+    echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    exit 1
+  fi
+}
+
+check_external() {
+  # if user defined a trailing slash remove it here
+  if [[ -n "$REPO" ]]; then
+    REPO="${REPO%/}"
+    # check for external path
+    if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
+      local mesg="User $USER has no write permissions on $REPO"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    fi
+  else
+    REPO="${CHROOTPATH64%/}/root/repo"
+  fi
+
+  if [[ -z "$REPO_NAME" ]]; then
+    REPO_NAME="chroot_local"
+  fi
+}
+
 create() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
     local mesg="Working directory $CHROOTPATH64 already exists."
@@ -205,14 +210,6 @@ create() {
   if ! [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
     # enable pacman color output in buildroot because I like it
     sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
-  fi
-}
-
-check2() {
-  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-    local mesg="No buildroot found. Create one using the 'c' option and try again."
-    echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
   fi
 }
 
@@ -289,22 +286,23 @@ indexit() {
 
 syncup() {
   # make sure the user copy and root copy of the repo are in parity since invoking
-  # without the -c switch will not on its own, but only if the repo resides in the chroot
-  [[ "$REPO" == "${CHROOTPATH64%/}/root/repo" ]] &&  [[ -d "$REPO" ]] &&
-    rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
+  # without the -c switch will not on its own
+  if REPO="${CHROOTPATH64%/}/root/repo"; then
+    [[ -d "$REPO" ]] && rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
+  fi
 
   # also need a safeguard for users invoking `ccm S` once a fresh buildroot to ensure
   # that the user's pacman.conf also contains the entry for [chroot_local]
   if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to buildroot
-    if $REPO="${CHROOTPATH64%/}/root/repo"; then
+    if REPO_NAME="chroot_local"; then
       sed -i "/\[testing\]/i \
-      # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
-          "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
-    else
+        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
+        "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+     else
       sed -i "/\[testing\]/i \
-      # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://$REPO\n" \
-          "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+        # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://$REPO\n" \
+        "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
     fi
   fi
 }
@@ -317,7 +315,7 @@ update() {
 
 repocheck() {
   if [[ ! -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-    local mesg="Local repo in buildroot is empty. Build something first."
+    local mesg="Local repo is empty. Build something first."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
   fi
@@ -334,8 +332,9 @@ delete() {
   rm -rf "${REPO:?}"/*
 
   # modify pacman.conf so we don't error out due to missing databases
-  sed -i '/Added by clean/,+4d' "$CHROOTPATH64"/root/etc/pacman.conf
-}
+  [[ -f "$CHROOTPATH64"/root/etc/pacman.conf ]] &&
+    sed -i '/Added by clean/,+4d' "$CHROOTPATH64"/root/etc/pacman.conf
+  }
 
 testing() {
   if [[ "$TESTING" = "Disabled" ]]; then
@@ -399,6 +398,15 @@ preview() {
     BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
     THREADS="${BR_THREADS//[^0-9]/}"
   fi
+
+  [[ -d "$REPO" ]] && REPOSIZE=$(du -sh "$REPO" 2>/dev/null|awk '{ print $1 }') || REPOSIZE="4.0K"
+  
+  [[ "$REPOSIZE" = "4.0K" ]] && REPOSIZE="${BOLD}${RED}(Empty repo)${ALL_OFF}" || REPOSIZE="${BOLD}($REPOSIZE)${ALL_OFF}"
+  echo
+  echo -en "${BOLD} repo path:"
+  echo -e "$(tput cr)$(tput cuf 18)${BLUE}$REPO/${ALL_OFF}${BOLD}${ALL_OFF} $REPOSIZE"
+  echo -en "${BOLD} repo name:"
+  echo -e "$(tput cr)$(tput cuf 18)$REPO_NAME${ALL_OFF}${BOLD}${ALL_OFF}"
 
   if [[ HERE -eq 1 ]]; then
     echo
@@ -546,45 +554,48 @@ etime() {
 }
 case "$1" in
   a)
-    check && check2 && addit && indexit
+    check_config && check_buildroot && addit && indexit
+    # not needed if repo is external so check for internal
     [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup
     ;;
   c)
-    check && distcc_check && create
+    check_config && distcc_check && create
     ;;
   cd)
     # force running with distcc to override the config file setting
-    check && distcc_check
+    check_config && distcc_check
     RUNDISTCC=y
     create
     ;;
   pc)
-    check && purgecache
+    check_config && purgecache
     ;;
   t)
-    check && check2 && testing
+    check_config && check_buildroot && testing
     # no need to call update since testing function handles this
     ;;
   d)
+    check_config && check_external && repocheck
     mesg="Deleting all packages and index in buildroot repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     mesg=
-    check && check2 && repocheck && delete
+    #check_config && check_buildroot && repocheck && delete
+    delete
     ;;
   l)
-    check && check2 && repocheck && list
+    #check_config && check_buildroot && repocheck && list
+    check_config && check_external && repocheck && list
     ;;
   n)
-    check && nuke
+    check_config && nuke
     ;;
   p)
-    check && header && distcc_check && preview
+    check_config && check_external && header && distcc_check && preview
     ;;
   ti)
-    check && header && etime
+    check_config && header && etime
     ;;
   R)
-    check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created/nothing to repackage. Aborting."
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -597,10 +608,10 @@ case "$1" in
     mesg=
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    build && indexit && syncup
+    check_config && build && indexit && syncup
     ;;
   s)
-    check && distcc_check
+    check_config && distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -614,10 +625,10 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    check && build && indexit && syncup
+    check_config && check_external && build && indexit && syncup
     ;;
   S)
-    check
+    check_config
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -631,10 +642,10 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    check && build && indexit && syncup
+    check_config && check_external && build && indexit && syncup
     ;;
   u)
-    check && check2 && update
+    check_config && check_buildroot && update
     ;;
   *)
     header
