@@ -286,22 +286,16 @@ indexit() {
 
 syncup() {
   # make sure the user copy and root copy of the repo are in parity since invoking
-  # without the -c switch will not on its own
+  # without the -c switch will not on its own.
+  # this is only applicable if using the internal repo/externals don't have this problem
   if REPO="${CHROOTPATH64%/}/root/repo"; then
     [[ -d "$REPO" ]] && rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
-  fi
-
-  # also need a safeguard for users invoking `ccm S` once a fresh buildroot to ensure
-  # that the user's pacman.conf also contains the entry for [chroot_local]
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
-    # add a local repo to buildroot
-    if REPO_NAME="chroot_local"; then
+    # also need a safeguard for users invoking `ccm S` once on a fresh buildroot to ensure
+    # that the user's pacman.conf also contains the entry for [chroot_local]
+    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
+      # add a local repo to buildroot
       sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
-        "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
-     else
-      sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://$REPO\n" \
+        # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
         "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
     fi
   fi
