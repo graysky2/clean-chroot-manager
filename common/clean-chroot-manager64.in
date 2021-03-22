@@ -214,7 +214,6 @@ create() {
 }
 
 addit() {
-  #[[ -d "$CHROOTPATH64/$USER/repo" ]] || mkdir "$CHROOTPATH64/$USER/repo"
   if ! rsync -rlxDu --exclude "*.log" ./*.pkg.tar* "$REPO"/ &>/dev/null; then
     local mesg="could not add packages to local repo"
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -251,11 +250,11 @@ build() {
 indexit() {
   # if this is the first time a package has been successfully built,
   # append the local repo to the buildroot's pacman.conf
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64"/root/etc/pacman.conf; then
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
     # add a local repo to buildroot
     sed -i "/\[testing\]/i \
       # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-          "$CHROOTPATH64"/root/etc/pacman.conf
+          "$CHROOTPATH64/$USER/etc/pacman.conf"
   fi
 
   # setup a local repo and add adjust files in buildroot
@@ -271,9 +270,10 @@ indexit() {
     cp "$i" "$REPO"
     repo-add "$REPO"/"$REPO_NAME".db.tar.gz "$REPO/$i" || exit 1
 
+    ### do we really want this?
     # make sure that the buildroot package matches the live pacman cache package
     # to avoid a checksum error if the user builds the same package wo/ bumping the pkgver
-    [[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+    #[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
   done
   unset GLOBIGNORE
 
@@ -309,7 +309,7 @@ update() {
 
 repocheck() {
   if [[ ! -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-    local mesg="Local repo is empty. Build something first."
+    local mesg="Local repo is empty. Build or manually populate packages first."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     exit 1
   fi
@@ -323,12 +323,14 @@ list() {
 
 delete() {
   # remove all files from the repo including packages and databases
-  rm -rf "${REPO:?}"/*
+  rm -rf "${REPO:?}"/* 2>/dev/null
+  rm -rf "${REPO:?}"/.* 2>/dev/null
 
   # modify pacman.conf so we don't error out due to missing databases
-  [[ -f "$CHROOTPATH64"/root/etc/pacman.conf ]] &&
+  if [[ -f "$CHROOTPATH64"/root/etc/pacman.conf ]]; then
     sed -i '/Added by clean/,+4d' "$CHROOTPATH64"/root/etc/pacman.conf
-  }
+  fi
+}
 
 testing() {
   if [[ "$TESTING" = "Disabled" ]]; then
@@ -392,10 +394,16 @@ preview() {
     BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
     THREADS="${BR_THREADS//[^0-9]/}"
   fi
-
-  [[ -d "$REPO" ]] && REPOSIZE=$(du -sh "$REPO" 2>/dev/null|awk '{ print $1 }') || REPOSIZE="4.0K"
   
-  [[ "$REPOSIZE" = "4.0K" ]] && REPOSIZE="${BOLD}${RED}(Empty repo)${ALL_OFF}" || REPOSIZE="${BOLD}($REPOSIZE)${ALL_OFF}"
+  if [[ -d "$REPO" ]]; then
+    if ! find "$REPO" -maxdepth 0 -type d -empty |grep -q .; then
+      REPOSIZE="${BOLD}$(du -sh "$REPO" 2>/dev/null|awk '{ print $1 }')${ALL_OFF}"
+    else
+      REPOSIZE="${BOLD}${RED}(Empty repo)${ALL_OFF}"
+    fi
+  else
+    REPOSIZE="${BOLD}${RED}(Empty repo)${ALL_OFF}"
+  fi
   echo
   echo -en "${BOLD} repo path:"
   echo -e "$(tput cr)$(tput cuf 18)${BLUE}$REPO/${ALL_OFF}${BOLD}${ALL_OFF} $REPOSIZE"
@@ -472,8 +480,6 @@ subvolume_delete_recursive() {
 }
 
 nuke() {
-  local mesg="Nuking the buildroot..."
-  echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
   if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
     for i in "$CHROOTPATH64"/*; do
       if [ -d "$i" ]; then
@@ -527,11 +533,9 @@ distcc_check() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       exit 1
     fi
-
     # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/64349
     THREADS=$DISTCC_THREADS
-
   fi
 }
 
@@ -548,9 +552,9 @@ etime() {
 }
 case "$1" in
   a)
-    check_config && check_buildroot && addit && indexit
-    # not needed if repo is external so check for internal
-    [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup
+    check_config && check_external && addit && indexit
+    # syncup only need to be called if repo is internal
+    [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup || exit 0
     ;;
   c)
     check_config && distcc_check && create
@@ -572,16 +576,20 @@ case "$1" in
     check_config && check_external && repocheck
     mesg="Deleting all packages and index in buildroot repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
-    #check_config && check_buildroot && repocheck && delete
     delete
     ;;
   l)
-    #check_config && check_buildroot && repocheck && list
     check_config && check_external && repocheck && list
     ;;
   n)
+    mesg="Deleting the entire buildroot..."
+    echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     check_config && nuke
+    ;;
+  N)
+    mesg="Deleting the entire buildroot and external repo..."
+    echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    check_config && delete && nuke
     ;;
   p)
     check_config && check_external && header && distcc_check && preview
@@ -590,16 +598,15 @@ case "$1" in
     check_config && header && etime
     ;;
   R)
+    check_config
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created/nothing to repackage. Aborting."
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       exit 1
     fi
-
     postargs=('--' '-R')
     mesg="Attempting to repackage..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
     check_config && build && indexit && syncup
@@ -609,13 +616,11 @@ case "$1" in
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      mesg=
       create
     fi
 
     mesg="Attempting to build package..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
 
     # flag to add '-c' to the args array
     CLEANIT=1
@@ -626,13 +631,11 @@ case "$1" in
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      mesg=
       create
     fi
 
     mesg="Attempting to build package..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    mesg=
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
@@ -646,10 +649,10 @@ case "$1" in
     echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
     echo
     echo -e "${BOLD} --- SETUP AND BREAKDOWN  ---"
-    echo -e "${BOLD} Target: ${BLUE}$CHROOTPATH64${ALL_OFF}"
-    echo -e "${BOLD}   c) Create the clean buildroot${ALL_OFF}"
-    echo -e "${BOLD}  cd) Create the clean buildroot with distcc${ALL_OFF}"
-    echo -e "${BOLD}   n) Nuke the clean buildroot${ALL_OFF}"
+    echo -e "${BOLD}   c) Create the buildroot${ALL_OFF}"
+    echo -e "${BOLD}  cd) Create the buildroot with distcc${ALL_OFF}"
+    echo -e "${BOLD}   N) Nuke the buildroot and external repo (if defined)${ALL_OFF}"
+    echo -e "${BOLD}   n) Nuke the buildroot${ALL_OFF}"
     echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
     echo
     if [[ -n "$CCACHE_DIR" ]]; then
@@ -663,7 +666,6 @@ case "$1" in
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
-    echo -e "${BOLD} Local repo: ${BLUE}$REPO${ALL_OFF}"
     echo -e "${BOLD}   a) Add packages in current dir to the local repo${ALL_OFF}"
     echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
     echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
