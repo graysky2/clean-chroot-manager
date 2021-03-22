@@ -5,16 +5,18 @@ _ccm() {
 
   options=('c:create the clean chroot'
           'cd:create the clean chroot with distcc'
+           'N:nuke the clean chroot and external repo if defined'
            'n:nuke the clean chroot'
            't:toggle [testing] on or off'
-           'm:toggle [multilib] on or off'
-           's:run makepkg in the clean chroot'
+           'R:repackage'
            'S:run makepkg in the clean chroot but do not clean first'
+           's:run makepkg in the clean chroot'
            'a:add packages in current dir to local repo'
-           'l:list packages in the local repo'
            'd:delete all packages in the local repo'
-           'u:update the clean chroot manually'
-           'p:preview settings')
+           'l:list packages in the local repo'
+           'p:preview settings'
+          'ti:show run time of current build'
+           'u:update the clean chroot manually')
 
   _describe 'options' options
 }
