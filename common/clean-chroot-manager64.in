@@ -295,9 +295,9 @@ syncup() {
   # that the user's pacman.conf also contains the entry for [chroot_local]
   if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
     # add a local repo to buildroot
-    if REPO_NAME="chroot_local"; then
+    if REPO="${CHROOTPATH64%/}/root/repo"; then
       sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n[chroot_local]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
+        # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
         "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
      else
       sed -i "/\[testing\]/i \
