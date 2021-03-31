@@ -147,6 +147,14 @@ check_buildroot() {
   fi
 }
 
+check_active() {
+  if pidof -q -x makechrootpkg; then
+    mesg="Active build detected. Try again when not building."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    exit 1
+  fi
+}
+
 check_external() {
   # if user defined a trailing slash remove it here
   if [[ -n "$REPO" ]]; then
@@ -546,6 +554,7 @@ etime() {
     exit 1
   fi
 }
+
 case "$1" in
   a)
     check_config && check_external && addit && indexit
@@ -553,11 +562,11 @@ case "$1" in
     [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup || exit 0
     ;;
   c)
-    check_config && distcc_check && create
+    check_config && check_active && distcc_check && create
     ;;
   cd)
     # force running with distcc to override the config file setting
-    check_config && distcc_check
+    check_config && check_active && distcc_check
     RUNDISTCC=y
     create
     ;;
@@ -565,7 +574,7 @@ case "$1" in
     check_config && purgecache
     ;;
   t)
-    check_config && check_buildroot && testing
+    check_config && check_active && check_buildroot && testing
     # no need to call update since testing function handles this
     ;;
   d)
@@ -580,12 +589,12 @@ case "$1" in
   n)
     mesg="Deleting the entire buildroot..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && nuke
+    check_config && check_active && nuke
     ;;
   N)
     mesg="Deleting the entire buildroot and external repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && delete && nuke
+    check_config && check_active && delete && nuke
     ;;
   p)
     check_config && check_external && header && distcc_check && preview
@@ -600,15 +609,17 @@ case "$1" in
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       exit 1
     fi
+
     postargs=('--' '-R')
     mesg="Attempting to repackage..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    check_config && build && indexit && syncup
+
+    check_config && check_active && build && indexit && syncup
     ;;
   s)
-    check_config && distcc_check
+    check_config && check_active && distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -620,10 +631,10 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    check_config && check_external && build && indexit && syncup
+    check_external && build && indexit && syncup
     ;;
   S)
-    check_config
+    check_config && check_active
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -635,10 +646,10 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    check_config && check_external && build && indexit && syncup
+    check_external && build && indexit && syncup
     ;;
   u)
-    check_config && check_buildroot && update
+    check_config && check_active && check_buildroot && update
     ;;
   *)
     header
