@@ -196,10 +196,6 @@ create() {
       fi
     fi
 
-    [[ -n "$CFLAGS" ]] &&
-      sed -i -e "s/^CFLAGS.*/CFLAGS=\"$CFLAGS\"/" \
-      -i -e 's/^CXXFLAGS.*/CXXFLAGS="${CFLAGS}"/' "$CHROOTPATH64"/root/etc/makepkg.conf
-
     [[ -d "$CCACHE_DIR" ]] &&
       sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
 
