@@ -15,7 +15,6 @@ _ccm() {
            'd:delete all packages in the local repo'
            'l:list packages in the local repo'
            'p:preview settings'
-          'ti:show run time of current build'
            'u:update the clean chroot manually')
 
   _describe 'options' options

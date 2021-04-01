@@ -32,7 +32,6 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 | s | Run makepkg in build mode under the buildroot. The equivalent of `makepkg -s` in the buildroot. |
 | S | Run makepkg in build mode under the buildroot without first cleaning it. Useful for rebuilds without dirtying the pristine buildroot or when building packages with many of the same deps. |
 | t | Toggle [testing] and [community-testing] on/off in the buildroot and update packages accordingly (upgrade or downgrade). |
-| ti | Show run time of current build. |
 | u | Update the packages inside the buildroot. The equivalent of `pacman -Syu` in the buildroot. |
 
 ## Example Usage

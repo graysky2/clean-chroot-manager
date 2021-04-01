@@ -296,7 +296,7 @@ syncup() {
       # add a local repo to buildroot
       sed -i "/\[testing\]/i \
         # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
-        "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
+              "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
     fi
   fi
 }
@@ -436,6 +436,12 @@ preview() {
 
     echo -en "${BOLD} buildroot options:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$TESTING_C  $DISTCC_C  $CCACHE_C${ALL_OFF}"
+
+    if pidof -q -x makechrootpkg; then
+      etime=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
+      echo;  echo -en "${BOLD} building, elasped:"
+      echo -e "$(tput cr)$(tput cuf 21)${BOLD}${etime/      /}${ALL_OFF}"
+    fi
   fi
 }
 
@@ -534,17 +540,6 @@ distcc_check() {
   fi
 }
 
-etime() {
-  if pidof -q -x makechrootpkg; then
-    etime=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
-    echo -en "${BOLD} elasped time:"
-    echo -e "$(tput cr)$(tput cuf 18)${BLUE}${etime/      /}${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
-  else
-    local mesg="Cannot determine pid of running build."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-  fi
-}
-
 case "$1" in
   a)
     check_config && check_external && addit && indexit
@@ -588,9 +583,6 @@ case "$1" in
     ;;
   p)
     check_config && check_external && distcc_check && preview
-    ;;
-  ti)
-    check_config && etime
     ;;
   R)
     check_config
@@ -669,7 +661,6 @@ case "$1" in
     echo
     echo -e "${BOLD} --- MISCELLANEOUS ---"
     echo -e "${BOLD}   p) Preview settings${ALL_OFF}"
-    echo -e "${BOLD}  ti) Show run time of current build${ALL_OFF}"
     echo -e "${BOLD}   u) Update clean buildroot${ALL_OFF}"
     ;;
 esac
