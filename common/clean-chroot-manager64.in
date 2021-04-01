@@ -42,8 +42,8 @@ if [[ -z "$SUDO_USER" ]]; then
     USER=$(logname)
   fi
 elif [[ "$SUDO_USER" = "root" ]]; then
-  mesg="Cannot determine your username so exiting."
-  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+  mesg="Cannot determine your username."
+  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
 else
   USER="$SUDO_USER"
 fi
@@ -56,20 +56,19 @@ CFGFILE=${CFGFILE:-$HOMEDIR/.config/$PKG.conf}
 
 # dependency checks probably not needed but they do not hurt
 if ! command -v mkarchroot >/dev/null 2>&1; then
-  mesg="devtools is required to use this script. Aborting."
-  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  exit 1
+  mesg="devtools is required to use this script."
+  echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
 fi
 
 check_config() {
   if [[ $EUID -ne 0 ]]; then
-    local mesg="This script must be called as root!"
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    local mesg="This script must be called as root."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
   if [[ ! -f $SKEL ]]; then
-    local mesg="$SKEL is missing. Reinstall this package to continue."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    local mesg="$SKEL is missing.  Reinstall this package to continue."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
   if [[ ! -f "$CFGFILE" ]]; then
@@ -89,19 +88,19 @@ check_config() {
     # parse config file for correctness
     if [[ ! -d "$CHROOTPATH64" ]]; then
       local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
       local mesg="Invalid setting for THREADS defined in $SKEL"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   fi
 
   if [[ -n "$DISTCC_THREADS" ]]; then
     if ! [[ "$DISTCC_THREADS" =~ ^[0-9]+$ ]]; then
       local mesg="Invalid setting for DISTCC_THREADS defined in $SKEL"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   fi
 
@@ -117,12 +116,12 @@ check_config() {
     # make sure we have a dir with correct permissions for ccache to use
     if  [[ ! -d "$CCACHE_DIR" ]]; then
       local mesg="Invalid CCACHE_DIR defined in $CFGFILE"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
 
     if sudo -u "$USER" -H sh -c "[ ! -w \"$CCACHE_DIR\" ]"; then
-      local mesg="User $USER has no write permissions on $CCACHE_DIR"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      local mesg="$USER has no write permissions on $CCACHE_DIR"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   fi
 
@@ -141,17 +140,15 @@ check_config() {
 
 check_buildroot() {
   if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-    local mesg="No buildroot found. Create one using the 'c' option and try again."
-    echo -e "${RED}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
+    local mesg="No buildroot found; create one using the 'c' option and try again."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
 check_active() {
   if pidof -q -x makechrootpkg; then
-    mesg="Active build detected. Try again when not building."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
+    mesg="Active build detected.  Try again when not building."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -162,7 +159,7 @@ check_external() {
     # check for external path
     if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
       local mesg="User $USER has no write permissions on $REPO"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   else
     REPO="${CHROOTPATH64%/}/root/repo"
@@ -176,7 +173,7 @@ check_external() {
 create() {
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
     local mesg="Working directory $CHROOTPATH64 already exists."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}" && exit 1
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
   local pkgs=('base-devel')
@@ -219,9 +216,8 @@ create() {
 
 addit() {
   if ! rsync -rlxDu --exclude "*.log" ./*.pkg.tar* "$REPO"/ &>/dev/null; then
-    local mesg="could not add packages to local repo"
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
+    local mesg="No packages found to add to local repo."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -299,7 +295,7 @@ syncup() {
     if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
       # add a local repo to buildroot
       sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n["$REPO_NAME"]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
+        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
         "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
     fi
   fi
@@ -313,9 +309,8 @@ update() {
 
 repocheck() {
   if [[ ! -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-    local mesg="Local repo is empty. Build or manually populate packages first."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
+    local mesg="Local repo is empty.  Build or manually populate packages first."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -368,6 +363,8 @@ testing() {
 }
 
 preview() {
+  echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
+  echo
   if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
     HERE=1
     PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
@@ -440,11 +437,6 @@ preview() {
     echo -en "${BOLD} buildroot options:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$TESTING_C  $DISTCC_C  $CCACHE_C${ALL_OFF}"
   fi
-}
-
-header() {
-  echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
-  echo
 }
 
 ##
@@ -533,9 +525,8 @@ distcc_check() {
   if [[ -n "$RUNDISTCC" ]]; then
     # fail if distcc_threads aren't defined
     if [[ -z "$DISTCC_THREADS" ]]; then
-      mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc. Aborting."
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      exit 1
+      local mesg="Define DISTCC_THREADS in $CFGFILE to build with distcc."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
     # need to prefix the call to makechrootpkg with threads value
     # https://bugs.archlinux.org/task/64349
@@ -545,13 +536,12 @@ distcc_check() {
 
 etime() {
   if pidof -q -x makechrootpkg; then
-    etime=$( ps --no-headers -o %t $(pidof -x sudo ccm | awk '{ print $(NF) }') )
+    etime=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
     echo -en "${BOLD} elasped time:"
     echo -e "$(tput cr)$(tput cuf 18)${BLUE}${etime/      /}${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
   else
-    mesg="Cannot determine pid of running build. Aborting."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    exit 1
+    local mesg="Cannot determine pid of running build."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -597,17 +587,16 @@ case "$1" in
     check_config && check_active && delete && nuke
     ;;
   p)
-    check_config && check_external && header && distcc_check && preview
+    check_config && check_external && distcc_check && preview
     ;;
   ti)
-    check_config && header && etime
+    check_config && etime
     ;;
   R)
     check_config
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-      mesg="No buildroot has been created/nothing to repackage. Aborting."
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      exit 1
+      mesg="No buildroot has been created/nothing to repackage."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
 
     postargs=('--' '-R')
@@ -652,7 +641,8 @@ case "$1" in
     check_config && check_active && check_buildroot && update
     ;;
   *)
-    header
+    echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
+    echo
     echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
     echo
     echo -e "${BOLD} --- SETUP AND BREAKDOWN  ---"
