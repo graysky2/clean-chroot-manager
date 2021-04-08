@@ -395,7 +395,7 @@ preview() {
     BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
     THREADS="${BR_THREADS//[^0-9]/}"
   fi
-  
+
   if [[ -d "$REPO" ]]; then
     if ! find "$REPO" -maxdepth 0 -type d -empty |grep -q .; then
       REPOSIZE="${BOLD}$(du -sh "$REPO" 2>/dev/null|awk '{ print $1 }')${ALL_OFF}"
@@ -604,7 +604,18 @@ case "$1" in
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      create
+      create && check_external
+
+  # if using an external repo and if it has a db, add it to pacman.conf
+  if [[ -f "$REPO/$REPO_NAME.db.tar.xz" ]]; then
+    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+      # add a local repo to buildroot
+      sed -i "/\[testing\]/i \
+        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
+              "$CHROOTPATH64/root/etc/pacman.conf"
+    fi
+  fi
+
     fi
 
     mesg="Attempting to build package..."
