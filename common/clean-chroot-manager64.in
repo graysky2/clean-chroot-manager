@@ -136,23 +136,7 @@ check_config() {
       export TESTING="Enabled"
     fi
   fi
-}
 
-check_buildroot() {
-  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-    local mesg="No buildroot found; create one using the 'c' option and try again."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-  fi
-}
-
-check_active() {
-  if pidof -q -x makechrootpkg; then
-    mesg="Active build detected.  Try again when not building."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-  fi
-}
-
-check_external() {
   # if user defined a trailing slash remove it here
   if [[ -n "$REPO" ]]; then
     REPO="${REPO%/}"
@@ -167,6 +151,20 @@ check_external() {
 
   if [[ -z "$REPO_NAME" ]]; then
     REPO_NAME="chroot_local"
+  fi
+}
+
+check_buildroot() {
+  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    local mesg="No buildroot found; create one using the 'c' option and try again."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  fi
+}
+
+check_active() {
+  if pidof -q -x makechrootpkg; then
+    mesg="Active build detected.  Try again when not building."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -282,7 +280,7 @@ syncup() {
     # add a local repo to buildroot
     sed -i "/\[testing\]/i \
       # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-            "$CHROOTPATH64/$USER/etc/pacman.conf"
+          "$CHROOTPATH64/$USER/etc/pacman.conf"
 
   # also sync up the root copy of pacman.conf with this new repo
   cp "$CHROOTPATH64/$USER/etc/pacman.conf" "$CHROOTPATH64/root/etc/pacman.conf"
@@ -292,7 +290,11 @@ syncup() {
   # without the -c switch will not on its own.
   # this is only applicable if using the internal repo/externals don't have this problem
   if REPO="${CHROOTPATH64%/}/$USER/repo"; then
-    [[ -d "$REPO" ]] && rsync -ax "$REPO"/ "${CHROOTPATH64%/}"/root/repo/
+    if [[ -d "$REPO" ]]; then
+      rsync -ax "$REPO"/ "${CHROOTPATH64%/}"/root/repo/
+    fi
+  else
+    return 0
   fi
 }
 
@@ -537,7 +539,7 @@ distcc_check() {
 
 case "$1" in
   a)
-    check_config && check_external && addit && indexit
+    check_config && addit && indexit
     # syncup only need to be called if repo is internal
     [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup || exit 0
     ;;
@@ -558,13 +560,13 @@ case "$1" in
     # no need to call update since testing function handles this
     ;;
   d)
-    check_config && check_external && repocheck
+    check_config && repocheck
     mesg="Deleting all packages and index in buildroot repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     delete
     ;;
   l)
-    check_config && check_external && repocheck && list
+    check_config && repocheck && list
     ;;
   n)
     mesg="Deleting the entire buildroot..."
@@ -574,10 +576,10 @@ case "$1" in
   N)
     mesg="Deleting the entire buildroot and external repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_external && check_active && delete && nuke
+    check_config && check_active && delete && nuke
     ;;
   p)
-    check_config && check_external && distcc_check && preview
+    check_config && distcc_check && preview
     ;;
   R)
     check_config
@@ -599,7 +601,8 @@ case "$1" in
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-      create && check_external
+
+      create
 
       # if using an external repo and if it has a db, add it to pacman.conf
       if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
@@ -617,7 +620,7 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    build && check_external && indexit && syncup
+    build && indexit && syncup
     ;;
   S)
     check_config && check_active
@@ -632,7 +635,7 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    check_external && build && indexit && syncup
+    build && indexit && syncup
     ;;
   u)
     check_config && check_active && check_buildroot && update
