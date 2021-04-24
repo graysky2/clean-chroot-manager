@@ -162,7 +162,7 @@ check_external() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   else
-    REPO="${CHROOTPATH64%/}/root/repo"
+    REPO="${CHROOTPATH64%/}/$USER/repo"
   fi
 
   if [[ -z "$REPO_NAME" ]]; then
@@ -248,15 +248,6 @@ build() {
 }
 
 indexit() {
-  # if this is the first time a package has been successfully built,
-  # append the local repo to the buildroot's pacman.conf
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
-    # add a local repo to buildroot
-    sed -i "/\[testing\]/i \
-      # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-          "$CHROOTPATH64/$USER/etc/pacman.conf"
-  fi
-
   # setup a local repo and add adjust files in buildroot
   [[ ! -d "$REPO" ]] && mkdir "$REPO"
   local mesg="Adding all packages in current dir to buildroot repo..."
@@ -267,7 +258,7 @@ indexit() {
   # with i686 packages so only process 'x86_64' and 'any' types
   GLOBIGNORE="*namcap.log"
   for i in *.pkg.tar*; do
-    cp "$i" "$REPO"
+    cp "$i" "$REPO" || exit 1
     repo-add "$REPO"/"$REPO_NAME".db.tar.gz "$REPO/$i" || exit 1
 
     ### do we really want this?
@@ -285,19 +276,23 @@ indexit() {
 }
 
 syncup() {
+  # if this is the first time a package has been successfully built,
+  # append the local repo to the buildroot's pacman.conf
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
+    # add a local repo to buildroot
+    sed -i "/\[testing\]/i \
+      # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
+            "$CHROOTPATH64/$USER/etc/pacman.conf"
+
+  # also sync up the root copy of pacman.conf with this new repo
+  cp "$CHROOTPATH64/$USER/etc/pacman.conf" "$CHROOTPATH64/root/etc/pacman.conf"
+  fi
+
   # make sure the user copy and root copy of the repo are in parity since invoking
   # without the -c switch will not on its own.
   # this is only applicable if using the internal repo/externals don't have this problem
-  if REPO="${CHROOTPATH64%/}/root/repo"; then
-    [[ -d "$REPO" ]] && rsync -ax "$REPO"/ "${CHROOTPATH64%/}/$USER"/repo/
-    # also need a safeguard for users invoking `ccm S` once on a fresh buildroot to ensure
-    # that the user's pacman.conf also contains the entry for [chroot_local]
-    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER"/etc/pacman.conf; then
-      # add a local repo to buildroot
-      sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://${CHROOTPATH64%/}/$USER/repo\n" \
-              "${CHROOTPATH64%/}/$USER"/etc/pacman.conf
-    fi
+  if REPO="${CHROOTPATH64%/}/$USER/repo"; then
+    [[ -d "$REPO" ]] && rsync -ax "$REPO"/ "${CHROOTPATH64%/}"/root/repo/
   fi
 }
 
@@ -579,7 +574,7 @@ case "$1" in
   N)
     mesg="Deleting the entire buildroot and external repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_active && delete && nuke
+    check_config && check_external && check_active && delete && nuke
     ;;
   p)
     check_config && check_external && distcc_check && preview
@@ -606,16 +601,15 @@ case "$1" in
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       create && check_external
 
-  # if using an external repo and if it has a db, add it to pacman.conf
-  if [[ -f "$REPO/$REPO_NAME.db.tar.xz" ]]; then
-    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
-      # add a local repo to buildroot
-      sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-              "$CHROOTPATH64/root/etc/pacman.conf"
-    fi
-  fi
-
+      # if using an external repo and if it has a db, add it to pacman.conf
+      if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
+        if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
+          # add a local repo to buildroot
+          sed -i "/\[testing\]/i \
+            # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
+                      "$CHROOTPATH64/$USER/etc/pacman.conf"
+        fi
+      fi
     fi
 
     mesg="Attempting to build package..."
@@ -623,7 +617,7 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    check_external && build && indexit && syncup
+    build && check_external && indexit && syncup
     ;;
   S)
     check_config && check_active
