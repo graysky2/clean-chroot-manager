@@ -210,6 +210,16 @@ create() {
     # enable pacman color output in buildroot because I like it
     sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
   fi
+
+  # if using an external repo and if it has a db, add it to pacman.conf
+  if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
+    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+      # add a local repo to buildroot
+      sed -i "/\[testing\]/i \
+        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
+              "$CHROOTPATH64/root/etc/pacman.conf"
+    fi
+  fi
 }
 
 addit() {
@@ -601,18 +611,7 @@ case "$1" in
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-
       create
-
-      # if using an external repo and if it has a db, add it to pacman.conf
-      if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-        if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
-          # add a local repo to buildroot
-          sed -i "/\[testing\]/i \
-            # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-                      "$CHROOTPATH64/$USER/etc/pacman.conf"
-        fi
-      fi
     fi
 
     mesg="Attempting to build package..."
