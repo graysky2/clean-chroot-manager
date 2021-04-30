@@ -146,7 +146,8 @@ check_config() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   else
-    REPO="${CHROOTPATH64%/}/$USER/repo"
+    REPO="${CHROOTPATH64%/}/root/repo"
+    export INTERNAL_REPO=1
   fi
 
   if [[ -z "$REPO_NAME" ]]; then
@@ -211,19 +212,27 @@ create() {
     sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
   fi
 
-  # if using an external repo and if it has a db, add it to pacman.conf
-  if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
-      # add a local repo to buildroot
-      sed -i "/\[testing\]/i \
-        # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-              "$CHROOTPATH64/root/etc/pacman.conf"
+  # if we are using an external repo and if it has a db, add it to pacman.conf if not do nothing
+  if [[ $INTERNAL_REPO -ne 1 ]]; then
+    if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
+      if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+        # add a local repo to buildroot
+        sed -i "/\[testing\]/i \
+          # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
+                  "$CHROOTPATH64/root/etc/pacman.conf"
+      fi
     fi
+  else
+    # make the empty dir for the repo in root's copy of the buildroot
+    # note that we still have to modify pacman.conf to add a line for the repo
+    # but only after it is populated with packages which is in the indexit function
+    [[ -d "$REPO" ]] || mkdir "$REPO"
+    chown "$USER" "$REPO"
   fi
 }
 
 addit() {
-  if ! rsync -rlxDu --exclude "*.log" ./*.pkg.tar* "$REPO"/ &>/dev/null; then
+  if ! su -c "rsync -rlxDu --exclude *.log ./*.pkg.tar* $REPO/" "$USER" &>/dev/null; then
     local mesg="No packages found to add to local repo."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
@@ -256,18 +265,31 @@ build() {
 }
 
 indexit() {
-  # setup a local repo and add adjust files in buildroot
-  [[ ! -d "$REPO" ]] && mkdir "$REPO"
   local mesg="Adding all packages in current dir to buildroot repo..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+
+  # external repos with db files are already setup when we made the buildroot
+  # but for internal repos, if this is the first time a package has been built,
+  # append the local repo to the buildroot's pacman.conf
+
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+    # add a local repo to buildroot
+    sed -i "/\[testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
+
+    # copy this pacman.conf back to the user copy if it exists... it may not if the user creates a
+    # fresh buildroot and wants to populate it with pre-built pacakges
+    if [[ -f "$CHROOTPATH64/$USER/etc/pacman.conf" ]]; then
+      cp "$CHROOTPATH64/root/etc/pacman.conf" "$CHROOTPATH64/$USER/etc/pacman.conf"
+    fi
+  fi
 
   # it could be that the user is building for both i686 and x86_64
   # in which case we don't want to pollute the pure x86_64 repo
   # with i686 packages so only process 'x86_64' and 'any' types
   GLOBIGNORE="*namcap.log"
   for i in *.pkg.tar*; do
-    cp "$i" "$REPO" || exit 1
-    repo-add "$REPO"/"$REPO_NAME".db.tar.gz "$REPO/$i" || exit 1
+    su -c "cp $i $REPO" "$USER" || exit 1
+    su -c "repo-add $REPO/$REPO_NAME.db.tar.gz $REPO/$i" "$USER" || exit 1
 
     ### do we really want this?
     # make sure that the buildroot package matches the live pacman cache package
@@ -281,31 +303,6 @@ indexit() {
   # went fine.  If we've made it to this point, the build was run
   # successfully, so return 0 instead
   return 0
-}
-
-syncup() {
-  # if this is the first time a package has been successfully built,
-  # append the local repo to the buildroot's pacman.conf
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/$USER/etc/pacman.conf"; then
-    # add a local repo to buildroot
-    sed -i "/\[testing\]/i \
-      # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-          "$CHROOTPATH64/$USER/etc/pacman.conf"
-
-  # also sync up the root copy of pacman.conf with this new repo
-  cp "$CHROOTPATH64/$USER/etc/pacman.conf" "$CHROOTPATH64/root/etc/pacman.conf"
-  fi
-
-  # make sure the user copy and root copy of the repo are in parity since invoking
-  # without the -c switch will not on its own.
-  # this is only applicable if using the internal repo/externals don't have this problem
-  if REPO="${CHROOTPATH64%/}/$USER/repo"; then
-    if [[ -d "$REPO" ]]; then
-      rsync -ax "$REPO"/ "${CHROOTPATH64%/}"/root/repo/
-    fi
-  else
-    return 0
-  fi
 }
 
 update() {
@@ -550,8 +547,6 @@ distcc_check() {
 case "$1" in
   a)
     check_config && addit && indexit
-    # syncup only need to be called if repo is internal
-    [[ -d $CHROOTPATH64/$USER"/repo" ]] && syncup || exit 0
     ;;
   c)
     check_config && check_active && distcc_check && create
@@ -604,7 +599,7 @@ case "$1" in
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
 
-    check_config && check_active && build && indexit && syncup
+    check_active && build && indexit
     ;;
   s)
     check_config && check_active && distcc_check
@@ -619,10 +614,10 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    build && indexit && syncup
+    build && indexit
     ;;
   S)
-    check_config && check_active
+    check_config && check_active && distcc_check
     if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -634,7 +629,7 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    build && indexit && syncup
+    build && indexit
     ;;
   u)
     check_config && check_active && check_buildroot && update
