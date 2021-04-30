@@ -594,7 +594,7 @@ case "$1" in
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
 
-    check_config && check_active && build && indexit && syncup
+    check_active && build && indexit && syncup
     ;;
   s)
     check_config && check_active && distcc_check
