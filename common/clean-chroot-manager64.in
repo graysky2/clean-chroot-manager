@@ -248,13 +248,13 @@ build() {
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
     # so honor those values here by not prefixing the call to makechrootpkg
-    if ! nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+    if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
       exit 1
     fi
   else
     # not using a custom makepkg.conf which means we're using the one on the live system so
     # we honor the values for MAKEFLAGS and PACKAGER in ~/.config/clean-chroot-manager.conf
-    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
       exit 1
     fi
   fi
