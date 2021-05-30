@@ -104,7 +104,7 @@ check_config() {
     fi
   fi
 
-  # ccache must be present on the host system or else dev-tools scripts
+  # ccache must be present on the host system or else devtools scripts
   # will throw an error.
   # probably redundant to add a check here but might be more straight forward
   # for users if we do... will leave it out for now.
@@ -183,29 +183,36 @@ create() {
 
   [[ -d "$CCACHE_DIR" ]] && pkgs+=('ccache')
   [[ -f "$CUSTOM_PACMAN_CONF" ]] && insargs+=(-C "$CUSTOM_PACMAN_CONF")
-  [[ -f "$CUSTOM_MAKEPKG_CONF" ]] && insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
+  if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
+    insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
+  else
+    # there can be disconnects in variables between makepkg.conf provided by the pacman
+    # package and the one provided by the devtools package so in order to maintain
+    # consistent behavior of scripts like extra-x86_64-build and others listed on the wiki
+    # under the "Convenience way" section (link below), we use the devtools 
+    # makepkg-x86_64.conf rather than the one defined on the live system
+    #
+    # https://wiki.archlinux.org/title/DeveloperWiki:Building_in_a_clean_chroot#Convenience_way
+    insargs+=(-M /usr/share/devtools/makepkg-x86_64.conf)
+  fi
 
   if ! mkarchroot "${insargs[@]}" "$CHROOTPATH64"/root "${pkgs[@]}"; then
     exit 1
   fi
 
-  # if using a custom makepkg.conf we assume the options therein are set by
-  # the user so do not modify here
-  if ! [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
-    if [[ -n "$RUNDISTCC" ]]; then
-      if [[ $DISTCCFAIL -ne 1 ]]; then
-        sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
-          -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
-          -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
-      fi
+  if [[ -n "$RUNDISTCC" ]]; then
+    if [[ $DISTCCFAIL -ne 1 ]]; then
+      sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
+        -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
+        -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
     fi
-
-    [[ -d "$CCACHE_DIR" ]] &&
-      sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
-
-    [[ -n "$PKGEXT" ]] &&
-      sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
   fi
+
+  [[ -d "$CCACHE_DIR" ]] &&
+    sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
+
+  [[ -n "$PKGEXT" ]] &&
+    sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
 
   if ! [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
     # enable pacman color output in buildroot because I like it
