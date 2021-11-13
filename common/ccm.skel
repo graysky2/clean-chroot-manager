@@ -21,6 +21,10 @@ THREADS=9
 #REPO="/home/foo/localrepo"
 #REPO_NAME='chroot_local'
 
+# Optionally uncomment to pass the --nocheck flag to the build which will skip
+# the check function in the PKGBUILD is it is present.
+#NOCHECK=1
+
 # Optionally define the format of compression for compiled packages. Leave this
 # undefined to use the Arch default.
 PKGEXT=

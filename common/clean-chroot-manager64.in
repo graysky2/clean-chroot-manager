@@ -247,6 +247,7 @@ addit() {
 
 build() {
   args=('-u')
+  [[ $NOCHECK -eq 1 ]] && postargs+=('--nocheck')
   [[ $CLEANIT -eq 1 ]] && args+=('-c')
   [[ -n "$RUNNAMCAP" ]] && args+=('-n')
   [[ -d "$CCACHE_DIR" ]] && args+=(-d "$CCACHE_DIR:/build/.ccache")
@@ -255,13 +256,13 @@ build() {
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
     # so honor those values here by not prefixing the call to makechrootpkg
-    if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+    if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"; then
       exit 1
     fi
   else
     # not using a custom makepkg.conf which means we're using the one on the live system so
     # we honor the values for MAKEFLAGS and PACKAGER in ~/.config/clean-chroot-manager.conf
-    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" "${postargs[@]}"; then
+    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"; then
       exit 1
     fi
   fi
@@ -600,7 +601,7 @@ case "$1" in
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
 
-    postargs=('--' '-R')
+    postargs+=('-R')
     mesg="Attempting to repackage..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     # flag to NOT add a '-c' to the args array
@@ -659,7 +660,7 @@ case "$1" in
       echo
     fi
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-    echo -e "${BOLD}   R) Repackage (passes '-- -R' to default)${ALL_OFF}"
+    echo -e "${BOLD}   R) Repackage (passes '-R' to default)${ALL_OFF}"
     echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
     echo
