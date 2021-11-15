@@ -239,7 +239,7 @@ create() {
 }
 
 addit() {
-  if ! su -c "rsync -rlxDu --exclude *.log ./*.pkg.tar* $REPO/" "$USER" &>/dev/null; then
+  if ! su -c "rsync -rlxDu --exclude '*.log' ./*.pkg.tar* $REPO/" "$USER" &>/dev/null; then
     local mesg="No packages found to add to local repo."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
