@@ -87,8 +87,10 @@ check_config() {
 
     # parse config file for correctness
     if [[ ! -d "$CHROOTPATH64" ]]; then
+      mkdir -p "$CHROOTPATH64" || {
       local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+    }
     fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
