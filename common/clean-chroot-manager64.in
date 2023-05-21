@@ -130,10 +130,10 @@ check_config() {
   # identify status of testing repo
   PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
   if [[ -f "$PACFILE" ]]; then
-    if grep -q '^#\[testing\]' "$PACFILE"; then
+    if grep -q '^#\[core-testing\]' "$PACFILE"; then
       # testing repo is not enabled
       export TESTING="Disabled"
-    elif grep -q '^\[testing\]' "$PACFILE"; then
+    elif grep -q '^\[core-testing\]' "$PACFILE"; then
       # testing repo is enabled
       export TESTING="Enabled"
     fi
@@ -258,6 +258,8 @@ build() {
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
     # so honor those values here by not prefixing the call to makechrootpkg
+    #echo makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"
+    #exit
     if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"; then
       exit 1
     fi
@@ -348,27 +350,27 @@ delete() {
 testing() {
   if [[ "$TESTING" = "Disabled" ]]; then
     # switch on testing
-    local mesg="Enabling [testing] in buildroot..."
+    local mesg="Enabling [*-testing] in buildroot..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    sed -i -e '/^#\[testing\]/ s,#,,' \
-      -i -e '/^\[testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+    sed -i -e '/^#\[core-testing\]/ s,#,,' \
+      -i -e '/^\[core-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
 
-    sed -i -e '/^#\[community-testing\]/ s,#,,' \
-      -i -e '/^\[community-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+    sed -i -e '/^#\[extra-testing\]/ s,#,,' \
+      -i -e '/^\[extra-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
 
     local mesg="Forcing an update to use any affected packages..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
   elif [[ "$TESTING" = "Enabled" ]]; then
     # switch off testing
-    local mesg="Disabling [testing] in buildroot..."
+    local mesg="Disabling [*-testing] in buildroot..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
-    sed -i -e '/^\[testing\]/ s,\[,#\[,' \
-      -i -e '/^#\[testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+    sed -i -e '/^\[core-testing\]/ s,\[,#\[,' \
+      -i -e '/^#\[core-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
 
-    sed -i -e '/^\[community-testing\]/ s,\[,#\[,' \
-      -i -e '/^#\[community-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+    sed -i -e '/^\[extra-testing\]/ s,\[,#\[,' \
+      -i -e '/^#\[extra-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
 
     local mesg="Downgrading affected packages if any..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -430,10 +432,10 @@ preview() {
     echo -en "${BOLD} buildroot threads:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$THREADS${ALL_OFF}"
 
-    if [[ $(grep -c '^#\[testing]' "$CHROOTPATH64"/root/etc/pacman.conf) -eq 0 ]]; then
-      TESTING_C="${BOLD}${GREEN}[testing]${ALL_OFF}"
+    if [[ $(grep -c '^#\[core-testing]' "$CHROOTPATH64"/root/etc/pacman.conf) -eq 0 ]]; then
+      TESTING_C="${BOLD}${GREEN}[*-testing]${ALL_OFF}"
     else
-      TESTING_C="${RED}[testing]${ALL_OFF}${BOLD}"
+      TESTING_C="${RED}[*-testing]${ALL_OFF}${BOLD}"
     fi
 
     if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!distcc') -eq 0 ]]; then
@@ -654,7 +656,7 @@ case "$1" in
     echo -e "${BOLD}  cd) Create the buildroot with distcc${ALL_OFF}"
     echo -e "${BOLD}   N) Nuke the buildroot and external repo (if defined)${ALL_OFF}"
     echo -e "${BOLD}   n) Nuke the buildroot${ALL_OFF}"
-    echo -e "${BOLD}   t) Toggle [testing] on/off${ALL_OFF}"
+    echo -e "${BOLD}   t) Toggle [*-testing] on/off${ALL_OFF}"
     echo
     if [[ -n "$CCACHE_DIR" ]]; then
       echo -e "${BOLD} Target: ${BLUE}$CCACHE_DIR${ALL_OFF}"

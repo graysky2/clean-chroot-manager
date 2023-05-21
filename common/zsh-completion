@@ -7,7 +7,7 @@ _ccm() {
           'cd:create the clean chroot with distcc'
            'N:nuke the clean chroot and external repo if defined'
            'n:nuke the clean chroot'
-           't:toggle [testing] on or off'
+           't:toggle [*-testing] on or off'
            'R:repackage'
            'S:run makepkg in the clean chroot but do not clean first'
            's:run makepkg in the clean chroot'

@@ -13,8 +13,8 @@ THREADS=9
 # makepkg.conf for the buildroot using a fully qualified path below.
 # Leaving these two undefined to use the system files.
 
-#CUSTOM_PACMAN_CONF='/usr/share/devtools/pacman-extra.conf'
-#CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg-x86_64.conf'
+#CUSTOM_PACMAN_CONF='/usr/share/devtools/pacman.conf.d/extra-testing.conf'
+#CUSTOM_MAKEPKG_CONF='/usr/share/devtools/makepkg.conf.d/x86_64.conf'
 
 # Optionally uncomment and define a custom location and name for the local chroot
 # package repo.
