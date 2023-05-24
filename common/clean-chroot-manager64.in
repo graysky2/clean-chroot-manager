@@ -226,7 +226,7 @@ create() {
     if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
       if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
         # add a local repo to buildroot
-        sed -i "/\[testing\]/i \
+        sed -i "/\[core-testing\]/i \
           # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
                   "$CHROOTPATH64/root/etc/pacman.conf"
       fi
@@ -286,7 +286,7 @@ indexit() {
 
   if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
     # add a local repo to buildroot
-    sed -i "/\[testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
+    sed -i "/\[core-testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
 
     # copy this pacman.conf back to the user copy if it exists... it may not if the user creates a
     # fresh buildroot and wants to populate it with pre-built pacakges
