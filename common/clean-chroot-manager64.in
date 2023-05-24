@@ -195,7 +195,7 @@ create() {
     # makepkg-x86_64.conf rather than the one defined on the live system
     #
     # https://wiki.archlinux.org/title/DeveloperWiki:Building_in_a_clean_chroot#Convenience_way
-    insargs+=(-M /usr/share/devtools/makepkg-x86_64.conf)
+    insargs+=(-M /usr/share/devtools/makepkg.conf.d/x86_64.conf)
   fi
 
   if ! mkarchroot "${insargs[@]}" "$CHROOTPATH64"/root "${pkgs[@]}"; then
