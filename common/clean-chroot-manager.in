@@ -2,7 +2,6 @@
 #
 # clean-chroot-manager by graysky
 #
-
 # shellcheck disable=1090
 
 VERS='@VERSION@'
@@ -87,10 +86,16 @@ check_config() {
 
     # parse config file for correctness
     if [[ ! -d "$CHROOTPATH" ]]; then
-      mkdir -p "$CHROOTPATH" || {
-      local mesg="Invalid CHROOTPATH defined in $CFGFILE"
+      local mesg="Missing CHROOTPATH on filesystem, please create it and try again"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-    }
+    fi
+
+    if [[ -n "$CHROOTPATH2" ]]; then
+      if [[ ! -d "$CHROOTPATH2" ]]; then
+      local mesg="Missing CHROOTPATH2 on filesystem, please create it and try again"
+        echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+      fi
+      SECONDARY=1
     fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -165,9 +170,16 @@ check_buildroot() {
 }
 
 check_active() {
-  if ps aux | grep makechrootpkg | grep "$CHROOTPATH"; then
-    mesg="Active build detected.  Try again when not building."
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  if pgrep -a makechrootpkg | grep -q "$CHROOTPATH"; then
+    # active build in primary chroot so try secondary
+    if pgrep -a makechrootpkg | grep -q "$CHROOTPATH2"; then
+      mesg="Active build detected.  Try again when not building."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+    else
+      # secondary is not active so use it for a parallel build
+      unset CHROOTPATH
+      export CHROOTPATH="$CHROOTPATH2"
+    fi
   fi
 }
 
@@ -191,7 +203,7 @@ create() {
     # there can be disconnects in variables between makepkg.conf provided by the pacman
     # package and the one provided by the devtools package so in order to maintain
     # consistent behavior of scripts like extra-x86_64-build and others listed on the wiki
-    # under the "Convenience way" section (link below), we use the devtools 
+    # under the "Convenience way" section (link below), we use the devtools
     # makepkg-x86_64.conf rather than the one defined on the live system
     #
     # https://wiki.archlinux.org/title/DeveloperWiki:Building_in_a_clean_chroot#Convenience_way
@@ -390,6 +402,35 @@ preview() {
 
   echo -en "${BOLD} buildroot path:"
   echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
+  if pgrep -a makechrootpkg | grep -q "$CHROOTPATH"; then
+    #etime1=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
+    RUNNINGPID=$(pgrep -a makechrootpkg | grep "$CHROOTPATH" | awk '{ print $1 }')
+    #etime1=$( pgrep -a makechrootpkg | grep "$CHROOTPATH" | awk '{ print $1 }' )
+    etime1=$( ps --no-headers -o %t "$RUNNINGPID" )
+    echo -en "${BOLD} building, elasped:"
+    echo -e "$(tput cr)$(tput cuf 21)${BOLD}${etime1/      /}${ALL_OFF}"
+    echo
+  fi
+
+
+  if [[ -f "$CHROOTPATH2"/root/.arch-chroot ]]; then
+    HERE=1
+    PRESENT="${BOLD}($(du -sh "$CHROOTPATH2" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+  else
+    PRESENT="${BOLD}${RED}(None present)${ALL_OFF}"
+  fi
+
+  if [[ SECONDARY -eq 1 ]]; then
+    echo -en "${BOLD} buildroot2 path:"
+    echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH2/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
+    if pgrep -a makechrootpkg | grep -q "$CHROOTPATH2"; then
+      RUNNINGPID2=$(pgrep -a makechrootpkg | grep "$CHROOTPATH2" | awk '{ print $1 }')
+      etime2=$( ps --no-headers -o %t "$RUNNINGPID2" )
+      echo -en "${BOLD} building, elasped:"
+      echo -e "$(tput cr)$(tput cuf 21)${BOLD}${etime2/      /}${ALL_OFF}"
+    fi
+  fi
+  echo
 
   if [[ -n "$CCACHE_DIR" ]]; then
     CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
@@ -452,12 +493,6 @@ preview() {
 
     echo -en "${BOLD} buildroot options:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$TESTING_C  $DISTCC_C  $CCACHE_C${ALL_OFF}"
-
-    if pidof -q -x makechrootpkg; then
-      etime=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
-      echo;  echo -en "${BOLD} building, elasped:"
-      echo -e "$(tput cr)$(tput cuf 21)${BOLD}${etime/      /}${ALL_OFF}"
-    fi
   fi
 }
 
@@ -498,8 +533,13 @@ subvolume_delete_recursive() {
 }
 
 nuke() {
-  if [[ $(stat -f -c %T "$CHROOTPATH") == btrfs ]]; then
-    for i in "$CHROOTPATH"/*; do
+  if pgrep -a makechrootpkg | grep -q "$ACTIVEROOTPATH"; then
+    mesg="Active build detected.  Try again when not building."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  fi
+
+  if [[ $(stat -f -c %T "$ACTIVEROOTPATH") == btrfs ]]; then
+    for i in "$ACTIVEROOTPATH"/*; do
       if [ -d "$i" ]; then
         subvolume_delete_recursive "$i" || return 255
       else
@@ -507,7 +547,7 @@ nuke() {
       fi
     done
   else
-    rm -rf "${CHROOTPATH:?}"/*
+    rm -rf "${ACTIVEROOTPATH:?}"/*
   fi
 }
 
@@ -588,7 +628,16 @@ case "$1" in
   n)
     mesg="Deleting the entire buildroot..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_active && nuke
+    check_config
+    export ACTIVEROOTPATH="$CHROOTPATH"
+    nuke
+    ;;
+  n2)
+    mesg="Deleting the entire secondary buildroot..."
+    echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    check_config
+    export ACTIVEROOTPATH="$CHROOTPATH2"
+    nuke
     ;;
   N)
     mesg="Deleting the entire buildroot and external repo..."
@@ -647,6 +696,7 @@ case "$1" in
     check_config && check_active && check_buildroot && update
     ;;
   *)
+    check_config
     echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
     echo
     echo -e "${BOLD} Usage: ${RED}$0${ALL_OFF}${BOLD} ${ALL_OFF}${BLUE}[option]${ALL_OFF}"
@@ -656,6 +706,9 @@ case "$1" in
     echo -e "${BOLD}  cd) Create the buildroot with distcc${ALL_OFF}"
     echo -e "${BOLD}   N) Nuke the buildroot and external repo (if defined)${ALL_OFF}"
     echo -e "${BOLD}   n) Nuke the buildroot${ALL_OFF}"
+    if [[ SECONDARY -eq 1 ]]; then
+      echo -e "${BOLD}  n2) Nuke the secondary buildroot${ALL_OFF}"
+    fi
     echo -e "${BOLD}   t) Toggle [*-testing] on/off${ALL_OFF}"
     echo
     if [[ -n "$CCACHE_DIR" ]]; then

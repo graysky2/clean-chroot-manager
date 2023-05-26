@@ -5,6 +5,14 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH="/scratch/.buildroot"
 
+# Optionally define a secondary build root for users wanting to have the option
+# to run a primary and secondary buildroot.  If the primary is busy, ccm will
+# automatically use the secondary buildroot.  One use case is having the ability
+# to build a package in the secondary buildroot while the primary buildroot is
+# busy building an independent package.  Note that this can result in race conditions
+# so use this with caution.
+#CHROOTPATH2="/scratch/.buildroot2"
+
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
 THREADS=9
