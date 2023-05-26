@@ -165,7 +165,7 @@ check_buildroot() {
 }
 
 check_active() {
-  if pidof -q -x makechrootpkg; then
+  if ps aux | grep makechrootpkg | grep "$CHROOTPATH64"; then
     mesg="Active build detected.  Try again when not building."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
