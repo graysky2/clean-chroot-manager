@@ -86,9 +86,9 @@ check_config() {
     . "$CFGFILE"
 
     # parse config file for correctness
-    if [[ ! -d "$CHROOTPATH64" ]]; then
-      mkdir -p "$CHROOTPATH64" || {
-      local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
+    if [[ ! -d "$CHROOTPATH" ]]; then
+      mkdir -p "$CHROOTPATH" || {
+      local mesg="Invalid CHROOTPATH defined in $CFGFILE"
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     }
     fi
@@ -128,7 +128,7 @@ check_config() {
   fi
 
   # identify status of testing repo
-  PACFILE="$CHROOTPATH64/root/etc/pacman.conf"
+  PACFILE="$CHROOTPATH/root/etc/pacman.conf"
   if [[ -f "$PACFILE" ]]; then
     if grep -q '^#\[core-testing\]' "$PACFILE"; then
       # testing repo is not enabled
@@ -148,7 +148,7 @@ check_config() {
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
   else
-    REPO="${CHROOTPATH64%/}/root/repo"
+    REPO="${CHROOTPATH%/}/root/repo"
     export INTERNAL_REPO=1
   fi
 
@@ -158,22 +158,22 @@ check_config() {
 }
 
 check_buildroot() {
-  if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+  if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
     local mesg="No buildroot found; create one using the 'c' option and try again."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
 check_active() {
-  if ps aux | grep makechrootpkg | grep "$CHROOTPATH64"; then
+  if ps aux | grep makechrootpkg | grep "$CHROOTPATH"; then
     mesg="Active build detected.  Try again when not building."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
 create() {
-  if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
-    local mesg="Working directory $CHROOTPATH64 already exists."
+  if [[ -f "$CHROOTPATH"/root/.arch-chroot ]]; then
+    local mesg="Working directory $CHROOTPATH already exists."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
@@ -198,7 +198,7 @@ create() {
     insargs+=(-M /usr/share/devtools/makepkg.conf.d/x86_64.conf)
   fi
 
-  if ! mkarchroot "${insargs[@]}" "$CHROOTPATH64"/root "${pkgs[@]}"; then
+  if ! mkarchroot "${insargs[@]}" "$CHROOTPATH"/root "${pkgs[@]}"; then
     exit 1
   fi
 
@@ -206,29 +206,29 @@ create() {
     if [[ $DISTCCFAIL -ne 1 ]]; then
       sed -i -e '/#DISTCC_HOSTS/ s,#,,' \
         -i -e "/^DISTCC_HOSTS/ s|=\"\"|=\"$DISTCC_HOSTS\"|" \
-        -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH64"/root/etc/makepkg.conf
+        -i -e '/^BUILDENV/ s,!distcc,distcc,' "$CHROOTPATH"/root/etc/makepkg.conf
     fi
   fi
 
   [[ -d "$CCACHE_DIR" ]] &&
-    sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH64"/root/etc/makepkg.conf
+    sed -i -e '/^BUILDENV/ s,!ccache,ccache,' "$CHROOTPATH"/root/etc/makepkg.conf
 
   [[ -n "$PKGEXT" ]] &&
-    sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
+    sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH"/root/etc/makepkg.conf
 
   if ! [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
     # enable pacman color output in buildroot because I like it
-    sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
+    sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH"/root/etc/pacman.conf
   fi
 
   # if we are using an external repo and if it has a db, add it to pacman.conf if not do nothing
   if [[ $INTERNAL_REPO -ne 1 ]]; then
     if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-      if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+      if ! grep -q "$REPO_NAME" "$CHROOTPATH/root/etc/pacman.conf"; then
         # add a local repo to buildroot
         sed -i "/\[core-testing\]/i \
           # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" \
-                  "$CHROOTPATH64/root/etc/pacman.conf"
+                  "$CHROOTPATH/root/etc/pacman.conf"
       fi
     fi
   else
@@ -258,15 +258,15 @@ build() {
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     # makechrootpkg reads MAKEFLAGS and PACKAGER from the defined makepkg.conf
     # so honor those values here by not prefixing the call to makechrootpkg
-    #echo makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"
+    #echo makechrootpkg "${args[@]}" -r "$CHROOTPATH" -- "${postargs[@]}"
     #exit
-    if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"; then
+    if ! nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH" -- "${postargs[@]}"; then
       exit 1
     fi
   else
     # not using a custom makepkg.conf which means we're using the one on the live system so
     # we honor the values for MAKEFLAGS and PACKAGER in ~/.config/clean-chroot-manager.conf
-    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH64" -- "${postargs[@]}"; then
+    if ! PACKAGER="$PACKAGER" MAKEFLAGS=-j$THREADS nice -n 19 makechrootpkg "${args[@]}" -r "$CHROOTPATH" -- "${postargs[@]}"; then
       exit 1
     fi
   fi
@@ -284,14 +284,14 @@ indexit() {
   # but for internal repos, if this is the first time a package has been built,
   # append the local repo to the buildroot's pacman.conf
 
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+  if ! grep -q "$REPO_NAME" "$CHROOTPATH/root/etc/pacman.conf"; then
     # add a local repo to buildroot
-    sed -i "/\[core-testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
+    sed -i "/\[core-testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH/root/etc/pacman.conf"
 
     # copy this pacman.conf back to the user copy if it exists... it may not if the user creates a
     # fresh buildroot and wants to populate it with pre-built pacakges
-    if [[ -f "$CHROOTPATH64/$USER/etc/pacman.conf" ]]; then
-      cp "$CHROOTPATH64/root/etc/pacman.conf" "$CHROOTPATH64/$USER/etc/pacman.conf"
+    if [[ -f "$CHROOTPATH/$USER/etc/pacman.conf" ]]; then
+      cp "$CHROOTPATH/root/etc/pacman.conf" "$CHROOTPATH/$USER/etc/pacman.conf"
     fi
   fi
 
@@ -320,7 +320,7 @@ indexit() {
 update() {
   local mesg="Updating the buildroot..."
   echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
+  arch-nspawn "$CHROOTPATH"/root pacman -Syu --noconfirm
 }
 
 repocheck() {
@@ -342,8 +342,8 @@ delete() {
   rm -rf "${REPO:?}"/.* 2>/dev/null
 
   # modify pacman.conf so we don't error out due to missing databases
-  if [[ -f "$CHROOTPATH64"/root/etc/pacman.conf ]]; then
-    sed -i '/Added by clean/,+4d' "$CHROOTPATH64"/root/etc/pacman.conf
+  if [[ -f "$CHROOTPATH"/root/etc/pacman.conf ]]; then
+    sed -i '/Added by clean/,+4d' "$CHROOTPATH"/root/etc/pacman.conf
   fi
 }
 
@@ -353,43 +353,43 @@ testing() {
     local mesg="Enabling [*-testing] in buildroot..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     sed -i -e '/^#\[core-testing\]/ s,#,,' \
-      -i -e '/^\[core-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+      -i -e '/^\[core-testing\]/{$!N; s,#,,}' "$CHROOTPATH"/root/etc/pacman.conf
 
     sed -i -e '/^#\[extra-testing\]/ s,#,,' \
-      -i -e '/^\[extra-testing\]/{$!N; s,#,,}' "$CHROOTPATH64"/root/etc/pacman.conf
+      -i -e '/^\[extra-testing\]/{$!N; s,#,,}' "$CHROOTPATH"/root/etc/pacman.conf
 
     local mesg="Forcing an update to use any affected packages..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    arch-nspawn "$CHROOTPATH64"/root pacman -Syu --noconfirm
+    arch-nspawn "$CHROOTPATH"/root pacman -Syu --noconfirm
   elif [[ "$TESTING" = "Enabled" ]]; then
     # switch off testing
     local mesg="Disabling [*-testing] in buildroot..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
 
     sed -i -e '/^\[core-testing\]/ s,\[,#\[,' \
-      -i -e '/^#\[core-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+      -i -e '/^#\[core-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH"/root/etc/pacman.conf
 
     sed -i -e '/^\[extra-testing\]/ s,\[,#\[,' \
-      -i -e '/^#\[extra-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH64"/root/etc/pacman.conf
+      -i -e '/^#\[extra-testing\]/{$!N; s,I,#I,}' "$CHROOTPATH"/root/etc/pacman.conf
 
     local mesg="Downgrading affected packages if any..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    arch-nspawn "$CHROOTPATH64"/root pacman -Syuu --noconfirm
+    arch-nspawn "$CHROOTPATH"/root pacman -Syuu --noconfirm
   fi
 }
 
 preview() {
   echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
   echo
-  if [[ -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+  if [[ -f "$CHROOTPATH"/root/.arch-chroot ]]; then
     HERE=1
-    PRESENT="${BOLD}($(du -sh "$CHROOTPATH64" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+    PRESENT="${BOLD}($(du -sh "$CHROOTPATH" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
   else
     PRESENT="${BOLD}${RED}(None present)${ALL_OFF}"
   fi
 
   echo -en "${BOLD} buildroot path:"
-  echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH64/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
+  echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CHROOTPATH/${ALL_OFF}${BOLD} $PRESENT${ALL_OFF}"
 
   if [[ -n "$CCACHE_DIR" ]]; then
     CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
@@ -432,19 +432,19 @@ preview() {
     echo -en "${BOLD} buildroot threads:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$THREADS${ALL_OFF}"
 
-    if [[ $(grep -c '^#\[core-testing]' "$CHROOTPATH64"/root/etc/pacman.conf) -eq 0 ]]; then
+    if [[ $(grep -c '^#\[core-testing]' "$CHROOTPATH"/root/etc/pacman.conf) -eq 0 ]]; then
       TESTING_C="${BOLD}${GREEN}[*-testing]${ALL_OFF}"
     else
       TESTING_C="${RED}[*-testing]${ALL_OFF}${BOLD}"
     fi
 
-    if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!distcc') -eq 0 ]]; then
+    if [[ $(grep '^BUILDENV' "$CHROOTPATH"/root/etc/makepkg.conf | grep -c '!distcc') -eq 0 ]]; then
       DISTCC_C="${BOLD}${GREEN}distcc${ALL_OFF}"
     else
       DISTCC_C="${RED}distcc${ALL_OFF}${BOLD}"
     fi
 
-    if [[ $(grep '^BUILDENV' "$CHROOTPATH64"/root/etc/makepkg.conf | grep -c '!ccache') -eq 0 ]]; then
+    if [[ $(grep '^BUILDENV' "$CHROOTPATH"/root/etc/makepkg.conf | grep -c '!ccache') -eq 0 ]]; then
       CCACHE_C="${BOLD}${GREEN}ccache${ALL_OFF}"
     else
       CCACHE_C="${RED}ccache${ALL_OFF}${BOLD}"
@@ -498,8 +498,8 @@ subvolume_delete_recursive() {
 }
 
 nuke() {
-  if [[ $(stat -f -c %T "$CHROOTPATH64") == btrfs ]]; then
-    for i in "$CHROOTPATH64"/*; do
+  if [[ $(stat -f -c %T "$CHROOTPATH") == btrfs ]]; then
+    for i in "$CHROOTPATH"/*; do
       if [ -d "$i" ]; then
         subvolume_delete_recursive "$i" || return 255
       else
@@ -507,7 +507,7 @@ nuke() {
       fi
     done
   else
-    rm -rf "${CHROOTPATH64:?}"/*
+    rm -rf "${CHROOTPATH:?}"/*
   fi
 }
 
@@ -536,8 +536,8 @@ distcc_check() {
   # simply set RUNDISTCC which may or may not be set in the config file
   # if the user created the buildroot with the 'cd' switch
 
-  if [[ -f "$CHROOTPATH64/root/etc/makepkg.conf" ]]; then
-    if grep -q -i '^BUILDENV=(distcc' "$CHROOTPATH64/root/etc/makepkg.conf"; then
+  if [[ -f "$CHROOTPATH/root/etc/makepkg.conf" ]]; then
+    if grep -q -i '^BUILDENV=(distcc' "$CHROOTPATH/root/etc/makepkg.conf"; then
       # a buildroot is present with distcc enabled
       RUNDISTCC=y
     fi
@@ -600,7 +600,7 @@ case "$1" in
     ;;
   R)
     check_config
-    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created/nothing to repackage."
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
@@ -615,7 +615,7 @@ case "$1" in
     ;;
   s)
     check_config && check_active && distcc_check
-    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       create
@@ -630,7 +630,7 @@ case "$1" in
     ;;
   S)
     check_config && check_active && distcc_check
-    if [[ ! -f "$CHROOTPATH64"/root/.arch-chroot ]]; then
+    if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       mesg="No buildroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
       create
