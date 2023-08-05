@@ -605,7 +605,7 @@ case "$1" in
       echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
     fi
 
-    postargs+=('-R')
+    postargs+=('-Rf')
     mesg="Attempting to repackage..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     # flag to NOT add a '-c' to the args array
@@ -664,7 +664,7 @@ case "$1" in
       echo
     fi
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
-    echo -e "${BOLD}   R) Repackage (passes '-R' to default)${ALL_OFF}"
+    echo -e "${BOLD}   R) Repackage (passes '-Rf' to default)${ALL_OFF}"
     echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"
     echo
