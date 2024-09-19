@@ -201,7 +201,18 @@ create() {
   fi
 
   [[ -d "$CCACHE_DIR" ]] && pkgs+=('ccache')
-  [[ -f "$CUSTOM_PACMAN_CONF" ]] && insargs+=(-C "$CUSTOM_PACMAN_CONF")
+  
+	if [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
+		insargs+=(-C "$CUSTOM_PACMAN_CONF")
+	else
+		# with pacman 7.0.0 having a setting of 'DownloadUser = alpm' in /etc/pacman.conf
+		# will cause the creation of the chroot to break so this is a hacky fix
+		if [[ -f /etc/pacman.conf ]]; then
+			sed '/DownloadUser = alpm/d' </etc/pacman.conf >/tmp/ccm-temp-pac.conf
+			insargs+=(-C /tmp/ccm-temp-pac.conf)
+		fi
+	fi
+
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
   else
