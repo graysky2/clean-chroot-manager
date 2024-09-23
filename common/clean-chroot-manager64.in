@@ -148,17 +148,6 @@ check_config() {
       # note that we still have to modify pacman.conf to add a line for the repo
       # but only after it is populated with packages which is in the indexit function
       [[ -d "$REPO" ]] || mkdir "$REPO"
-      chown :alpm -R "$REPO"
-      chown "$USER" "$REPO"
-    fi
-    # pacman 7.0.0 requires alpm gid for local repos
-    if [[ -d "$REPO" ]]; then
-      dir_gid=$(stat -c "%G" "$REPO")
-      if [[ "$dir_gid" == "alpm" ]]; then
-        true
-      else
-        chown :alpm -R "$REPO"
-      fi
     fi
     if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
       local mesg="User $USER has no write permissions on $REPO"
@@ -250,28 +239,26 @@ create() {
   fi
 
   # Create the internal repo, if it doesn't exist yet
-  if [[ $INTERNAL_REPO ]]; then
-    if [[ ! -d "$REPO" ]]; then
-      # make the empty dir for the repo in root's copy of the buildroot
-      # note that we still have to modify pacman.conf to add a line for the repo
-      # but only after it is populated with packages which is in the indexit function
-      [[ -d "$REPO" ]] || mkdir "$REPO"
+  if [[ ! -d "$REPO" ]]; then
+    # make the empty dir for the repo in root's copy of the buildroot
+    # note that we still have to modify pacman.conf to add a line for the repo
+    # but only after it is populated with packages which is in the indexit function
+    [[ -d "$REPO" ]] || mkdir "$REPO"
+    chown :alpm -R "$REPO"
+    chown "$USER" "$REPO"
+  fi
+  # pacman 7.0.0 requires alpm gid for local repos
+  if [[ -d "$REPO" ]]; then
+    dir_gid=$(stat -c "%G" "$REPO")
+    if [[ "$dir_gid" == "alpm" ]]; then
+      true
+    else
       chown :alpm -R "$REPO"
-      chown "$USER" "$REPO"
-    fi
-    # pacman 7.0.0 requires alpm gid for local repos
-    if [[ -d "$REPO" ]]; then
-      dir_gid=$(stat -c "%G" "$REPO")
-      if [[ "$dir_gid" == "alpm" ]]; then
-        true
-      else
-        chown :alpm -R "$REPO"
-      fi
-    fi
-    if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
-      local mesg="User $USER has no write permissions on $REPO"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-    fi
+   fi
+  fi
+  if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
+    local mesg="User $USER has no write permissions on $REPO"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
   # if we are using an external repo and if it has a db, add it to pacman.conf if not do nothing
