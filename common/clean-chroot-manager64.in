@@ -233,11 +233,6 @@ create() {
   [[ -n "$PKGEXT" ]] &&
     sed -i -e "s/^PKGEXT.*/PKGEXT=\"$PKGEXT\"/" "$CHROOTPATH64"/root/etc/makepkg.conf
 
-  if ! [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
-    # enable pacman color output in buildroot because I like it
-    sed -i -e '/^#Color/ s,#,,' "$CHROOTPATH64"/root/etc/pacman.conf
-  fi
-
   # Create the internal repo, if it doesn't exist yet
   if [[ ! -d "$REPO" ]]; then
     # make the empty dir for the repo in root's copy of the buildroot
