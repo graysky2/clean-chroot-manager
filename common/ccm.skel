@@ -67,3 +67,7 @@ DISTCC_THREADS=
 # below. For more info about ccache, see: https://wiki.archlinux.org/index.php/ccache
 #
 #CCACHE_DIR="/scratch/.ccache"
+
+# Optionally uncomment and define the file ccm will keep as a log of built packages
+# including the full path. If undefined $HOME/ccm-build.log will be created automatically
+#BUILDLOG=

@@ -161,6 +161,17 @@ check_config() {
   if [[ -z "$REPO_NAME" ]]; then
     REPO_NAME="chroot_local"
   fi
+
+  if [[ -z "$BUILDLOG" ]]; then
+    BUILDLOG="$HOMEDIR"/ccm-build.log
+  elif [[ ! -w "$BUILDLOG" ]]; then
+    local mesg="User $USER has no write permissions to BUILDLOG $BUILDLOG"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  fi
+
+  if [[ ! -f "$BUILDLOG" ]]; then
+    su -c "echo -e 'Date\tPackage\tTime' > $BUILDLOG" "$USER"
+  fi
 }
 
 check_buildroot() {
@@ -599,6 +610,15 @@ distcc_check() {
   fi
 }
 
+logbuild() {
+  source PKGBUILD
+  source /usr/share/makepkg/util/pkgbuild.sh
+
+  local pname=$(extract_global_variable "pkgname" 0 output && echo "$output")
+  local pver=$(get_full_version)
+  echo -e "$(date +%c)\t$pname-$pver\t$howlong" >> "$BUILDLOG"
+}
+
 case "$1" in
   a)
     check_config && addit && indexit
@@ -669,7 +689,7 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    build && indexit
+    build && indexit && logbuild
     ;;
   S)
     check_config && check_active && distcc_check
@@ -684,7 +704,7 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    build && indexit
+    build && indexit && logbuild
     ;;
   u)
     check_config && check_active && check_buildroot && update
