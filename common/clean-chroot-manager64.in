@@ -88,9 +88,9 @@ check_config() {
     # parse config file for correctness
     if [[ ! -d "$CHROOTPATH64" ]]; then
       mkdir -p "$CHROOTPATH64" || {
-      local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-    }
+        local mesg="Invalid CHROOTPATH64 defined in $CFGFILE"
+              echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+            }
     fi
 
     if ! [[ "$THREADS" =~ ^[0-9]+$ ]]; then
@@ -190,17 +190,17 @@ create() {
   fi
 
   [[ -d "$CCACHE_DIR" ]] && pkgs+=('ccache')
-  
-	if [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
-		insargs+=(-C "$CUSTOM_PACMAN_CONF")
-	else
-		# with pacman 7.0.0 having a setting of 'DownloadUser = alpm' in /etc/pacman.conf
-		# will cause the creation of the chroot to break so this is a hacky fix
-		if [[ -f /etc/pacman.conf ]]; then
-			sed '/DownloadUser = alpm/d' </etc/pacman.conf >/tmp/ccm-temp-pac.conf
-			insargs+=(-C /tmp/ccm-temp-pac.conf)
-		fi
-	fi
+
+  if [[ -f "$CUSTOM_PACMAN_CONF" ]]; then
+    insargs+=(-C "$CUSTOM_PACMAN_CONF")
+  else
+    # with pacman 7.0.0 having a setting of 'DownloadUser = alpm' in /etc/pacman.conf
+    # will cause the creation of the chroot to break so this is a hacky fix
+    if [[ -f /etc/pacman.conf ]]; then
+      sed '/DownloadUser = alpm/d' </etc/pacman.conf >/tmp/ccm-temp-pac.conf
+      insargs+=(-C /tmp/ccm-temp-pac.conf)
+    fi
+  fi
 
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     insargs+=(-M "$CUSTOM_MAKEPKG_CONF")
@@ -249,7 +249,7 @@ create() {
       true
     else
       chown :alpm -R "$REPO"
-   fi
+    fi
   fi
   if sudo -u "$USER" -H sh -c "[ ! -w \"$REPO\" ]"; then
     local mesg="User $USER has no write permissions on $REPO"
