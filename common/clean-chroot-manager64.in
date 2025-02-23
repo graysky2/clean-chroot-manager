@@ -391,14 +391,18 @@ list() {
 }
 
 delete() {
-  # remove all files from the repo including packages and databases
-  rm -rf "${REPO:?}"/* 2>/dev/null
-  rm -rf "${REPO:?}"/.* 2>/dev/null
+  mapfile -t packages < <(pacman -Sl chroot_local | awk '{print $2}')
+  mapfile -t files < <(find "$REPO" -name '*.pkg.tar*')
 
-  # modify pacman.conf so we don't error out due to missing databases
-  if [[ -f "$CHROOTPATH64"/root/etc/pacman.conf ]]; then
-    sed -i '/Added by clean/,+4d' "$CHROOTPATH64"/root/etc/pacman.conf
-  fi
+  for i in "${packages[@]}"; do
+    # TODO: make this less hacky
+    # if run multiple times repo-remove will throw errors about missing packages
+    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+  done
+
+  for i in "${files[@]}"; do
+    rm -f "$i"
+  done
 }
 
 testing() {
