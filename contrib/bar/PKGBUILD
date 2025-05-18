@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="dummy package"
 arch=(any)
 license=('GPL')
-depends=(test-foo)
+depends=(foo)
 
 package() {
   true
