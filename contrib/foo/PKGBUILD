@@ -1,0 +1,11 @@
+pkgname=foo
+pkgver=1.0
+pkgrel=1
+pkgdesc="dummy package"
+arch=(any)
+license=('GPL')
+depends=()
+
+package() {
+  true
+}
