@@ -49,6 +49,7 @@ else
 fi
 
 HOMEDIR="$(getent passwd "$USER" | cut -d: -f6)"
+XDG_RUNTIME_DIR="/run/user/$(getent passwd "$USER" | cut -d: -f3)"
 
 # allow user to override from cli thus using multiple files as needed
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOMEDIR/.config}"
@@ -391,18 +392,56 @@ list() {
 }
 
 delete() {
-  mapfile -t packages < <(pacman -Sl chroot_local | awk '{print $2}')
-  mapfile -t files < <(find "$REPO" -name '*.pkg.tar*')
+  # extract repo list and parse to pure names of packages
+  # which avoids a call to pacman as the local sync may be out-of-date
+  local work=$XDG_RUNTIME_DIR/ccm-repo-extract
 
-  for i in "${packages[@]}"; do
-    # TODO: make this less hacky
-    # if run multiple times repo-remove will throw errors about missing packages
-    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+  if [[ ! -d "$work" ]]; then
+    mkdir "$work"
+  else
+    rm -rf "${work:?}/*"
+  fi
+
+  tar xf "$REPO/$REPO_NAME.db.tar.gz" -C "$work"
+
+  # these two arrays should be symetrical so the number choices to follow should be in sync
+  mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
+  mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' | sort)
+
+  for i in "${!tarfiles[@]}"; do
+    printf "%2d) %s\n" $((i+1)) "$(basename "${tarfiles[i]}")"
   done
 
-  for i in "${files[@]}"; do
-    rm -f "$i"
-  done
+  read -r user_input
+
+  if [[ "$user_input" == "q" ]]; then
+    exit 0
+  fi
+
+  files_to_delete=()
+  names_to_remove=()
+
+  if [[ "$user_input" == "a" ]]; then
+    files_to_delete=("${tarfiles[@]}")
+    names_to_remove=("${pkgnames[@]}")
+  else
+    IFS=' ' read -ra numbers <<< "$user_input"
+    for num in "${numbers[@]}"; do
+      if ! [[ "$num" =~ ^[0-9]+$ ]]; then
+        continue
+      fi
+      files_to_delete+=("${tarfiles[$((num-1))]}")
+      names_to_remove+=("${pkgnames[$((num-1))]}")
+    done
+  fi
+
+for i in "${names_to_remove[@]}"; do
+  repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+done
+
+for i in "${files_to_delete[@]}"; do
+  rm -f "$i" 2>/dev/null
+done
 }
 
 testing() {
@@ -645,8 +684,9 @@ case "$1" in
     ;;
   d)
     check_config && repocheck
-    mesg="Deleting all packages and index in buildroot repo..."
+    mesg="Use space-separated numbers to select packages to delete, 'a' for all packages, and 'q' to quit."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    echo
     delete
     ;;
   l)
@@ -737,7 +777,7 @@ case "$1" in
     echo
     echo -e "${BOLD} --- LOCAL REPO ---${ALL_OFF}"
     echo -e "${BOLD}   a) Add packages in current dir to the local repo${ALL_OFF}"
-    echo -e "${BOLD}   d) Delete all packages in the local repo${ALL_OFF}"
+    echo -e "${BOLD}   d) Delete selected packages in the local repo${ALL_OFF}"
     echo -e "${BOLD}   l) List packages in local repo${ALL_OFF}"
     echo
     echo -e "${BOLD} --- MISCELLANEOUS ---"
