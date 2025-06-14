@@ -379,16 +379,16 @@ update() {
 }
 
 repocheck() {
-  if [[ ! -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
-    local mesg="Local repo is empty.  Build or manually populate packages first."
+  if [[ -z $(find "$REPO" -maxdepth 1 -name '*.pkg.tar*' -print -quit) ]]; then
+    local mesg="Local repo is empty."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
 list() {
-  local mesg="Listing out packages in buildroot repo..."
-  echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-  ls --color -lhF -I 'chroot*' "$REPO"
+  if [[ -n $(find "$REPO" -maxdepth 1 -name '*.pkg.tar*' -print -quit) ]]; then
+    ls --color -lhF -I 'chroot*' "$REPO"
+  fi
 }
 
 delete() {
@@ -690,7 +690,10 @@ case "$1" in
     delete
     ;;
   l)
-    check_config && repocheck && list
+    check_config && repocheck
+    local mesg="Listing out packages in buildroot repo..."
+    echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    list
     ;;
   n)
     mesg="Deleting the entire buildroot..."
