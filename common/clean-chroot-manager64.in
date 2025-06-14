@@ -328,14 +328,16 @@ indexit() {
   # but for internal repos, if this is the first time a package has been built,
   # append the local repo to the buildroot's pacman.conf
 
-  if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
-    # add a local repo to buildroot
-    sed -i "/\[core-testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
+  if [[ -f "$CHROOTPATH64/root/etc/pacman.conf" ]]; then
+    if ! grep -q "$REPO_NAME" "$CHROOTPATH64/root/etc/pacman.conf"; then
+      # add a local repo to buildroot
+      sed -i "/\[core-testing\]/i # Added by clean-chroot-manager\n[$REPO_NAME]\nSigLevel = Never\nServer = file://$REPO\n" "$CHROOTPATH64/root/etc/pacman.conf"
 
-    # copy this pacman.conf back to the user copy if it exists... it may not if the user creates a
-    # fresh buildroot and wants to populate it with pre-built pacakges
-    if [[ -f "$CHROOTPATH64/$USER/etc/pacman.conf" ]]; then
-      cp "$CHROOTPATH64/root/etc/pacman.conf" "$CHROOTPATH64/$USER/etc/pacman.conf"
+      # copy this pacman.conf back to the user copy if it exists... it may not if the user creates a
+      # fresh buildroot and wants to populate it with pre-built pacakges
+      if [[ -f "$CHROOTPATH64/$USER/etc/pacman.conf" ]]; then
+        cp "$CHROOTPATH64/root/etc/pacman.conf" "$CHROOTPATH64/$USER/etc/pacman.conf"
+      fi
     fi
   fi
 
