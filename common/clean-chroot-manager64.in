@@ -405,13 +405,16 @@ list() {
 }
 
 signit() {
-  local filename="$1"
+  if [[ -n $GPGKEY ]]; then
+    local filename="$1"
+    [[ -f "$filename".sig ]] && rm -f "$filename".sig
 
-  [[ -f "$filename".sig ]] && rm -f "$filename".sig
-
-  if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor $filename &>/dev/null" "$USER"; then
-    local mesg="Failed to sign $filename"
-    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+    if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor $filename &>/dev/null" "$USER"; then
+      local mesg="Failed to sign $filename"
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+    fi
+  else
+    return
   fi
 }
 
