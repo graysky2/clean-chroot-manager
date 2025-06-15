@@ -424,12 +424,12 @@ delete() {
   local work=$XDG_RUNTIME_DIR/ccm-repo-extract
 
   if [[ ! -d "$work" ]]; then
-    mkdir "$work"
+    su -c "mkdir $work" "$USER"
   else
-    rm -rf "${work:?}/*"
+    su -c "rm -rf ${work:?}/*" "$USER"
   fi
 
-  tar xf "$REPO/$REPO_NAME.db.tar.gz" -C "$work"
+  su -c "tar xf $REPO/$REPO_NAME.db.tar.gz -C $work" "$USER"
 
   # these two arrays should be symetrical so the number choices to follow should be in sync
   mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
@@ -462,14 +462,16 @@ delete() {
     done
   fi
 
-for i in "${names_to_remove[@]}"; do
-  repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
-done
+  for i in "${names_to_remove[@]}"; do
+    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+  done
 
-for i in "${files_to_delete[@]}"; do
-  rm -f "$i" 2>/dev/null
-  rm -f "$i".sig 2>/dev/null
-done
+  for i in "${files_to_delete[@]}"; do
+    rm -f "$i" 2>/dev/null
+    rm -f "$i".sig 2>/dev/null
+  done
+
+  rm -rf "$work"
 }
 
 testing() {
