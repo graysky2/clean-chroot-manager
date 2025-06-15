@@ -5,6 +5,10 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH64="/scratch/.buildroot"
 
+# Optionally specify a key to use for package signing
+# if no key is defined, ccm will not generate signatures for packages
+#GPGKEY=
+
 # Number of threads makepkg in the clean chroot will use when building.
 # The typical rule is physical cores + 1.
 THREADS=9

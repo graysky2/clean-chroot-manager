@@ -173,6 +173,20 @@ check_config() {
   if [[ ! -f "$BUILDLOG" ]]; then
     su -c "echo -e 'Date\tPackage\tTime' > $BUILDLOG" "$USER"
   fi
+
+  if [[ -n "$GPGKEY" ]]; then
+    # test that the defined key can sign
+    local rnd="$(uuidgen)"
+    su -c "touch /tmp/$rnd" "$USER"
+
+    if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor /tmp/$rnd &>/dev/null" "$USER"; then
+      local mesg="Invalid PGPKEY defined."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+      rm -f /tmp/"$rnd" /tmp/"$rnd".sig
+      exit 1
+    fi
+    rm -f /tmp/"$rnd" /tmp/"$rnd".sig
+  fi
 }
 
 check_buildroot() {
@@ -340,19 +354,16 @@ indexit() {
       fi
     fi
   fi
-
-  # it could be that the user is building for both i686 and x86_64
-  # in which case we don't want to pollute the pure x86_64 repo
-  # with i686 packages so only process 'x86_64' and 'any' types
-  GLOBIGNORE="*namcap.log"
+  
+  GLOBIGNORE="*.log"
   for i in *.pkg.tar*; do
     su -c "cp $i $REPO" "$USER" || exit 1
-    su -c "repo-add $REPO/$REPO_NAME.db.tar.gz $REPO/$i" "$USER" || exit 1
+  done
+  unset GLOBIGNORE
 
-    ### do we really want this?
-    # make sure that the buildroot package matches the live pacman cache package
-    # to avoid a checksum error if the user builds the same package wo/ bumping the pkgver
-    #[[ -f "/var/cache/pacman/pkg/$i" ]] && rm -f "/var/cache/pacman/pkg/$i"
+  GLOBIGNORE="*.log:*.sig"
+  for i in *.pkg.tar*; do
+    su -c "repo-add $REPO/$REPO_NAME.db.tar.gz $REPO/$i" "$USER" || exit 1
   done
   unset GLOBIGNORE
 
@@ -393,6 +404,17 @@ list() {
   fi
 }
 
+signit() {
+  local filename="$1"
+
+  [[ -f "$filename".sig ]] && rm -f "$filename".sig
+
+  if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor $filename &>/dev/null" "$USER"; then
+    local mesg="Failed to sign $filename"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  fi
+}
+
 delete() {
   # extract repo list and parse to pure names of packages
   # which avoids a call to pacman as the local sync may be out-of-date
@@ -408,7 +430,7 @@ delete() {
 
   # these two arrays should be symetrical so the number choices to follow should be in sync
   mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
-  mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' | sort)
+  mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' ! -name '*.sig' | sort)
 
   for i in "${!tarfiles[@]}"; do
     printf "%2d) %s\n" $((i+1)) "$(basename "${tarfiles[i]}")"
@@ -443,6 +465,7 @@ done
 
 for i in "${files_to_delete[@]}"; do
   rm -f "$i" 2>/dev/null
+  rm -f "$i".sig 2>/dev/null
 done
 }
 
@@ -693,7 +716,7 @@ case "$1" in
     ;;
   l)
     check_config && repocheck
-    local mesg="Listing out packages in buildroot repo..."
+    mesg="Listing out packages in buildroot repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     list
     ;;
@@ -723,7 +746,14 @@ case "$1" in
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
 
-    check_active && build && indexit
+    check_active
+    build || exit 1
+    GLOBIGNORE="*.log:*.sig"
+    for i in *.pkg.tar*; do
+      signit "$i"
+    done
+    unset GLOBIGNORE
+    indexit
     ;;
   s)
     check_config && check_active && distcc_check
@@ -738,7 +768,13 @@ case "$1" in
 
     # flag to add '-c' to the args array
     CLEANIT=1
-    build && indexit && logbuild
+    build || exit 1
+    GLOBIGNORE="*.log:*.sig"
+    for i in *.pkg.tar*; do
+      signit "$i"
+    done
+    unset GLOBIGNORE
+    indexit && logbuild
     ;;
   S)
     check_config && check_active && distcc_check
@@ -753,7 +789,13 @@ case "$1" in
 
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
-    build && indexit && logbuild
+    build || exit 1
+    GLOBIGNORE="*.log:*.sig"
+    for i in *.pkg.tar*; do
+      signit "$i"
+    done
+    unset GLOBIGNORE
+    indexit && logbuild
     ;;
   u)
     check_config && check_active && check_buildroot && update
