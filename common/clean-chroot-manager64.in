@@ -636,6 +636,36 @@ nuke() {
   else
     rm -rf "${CHROOTPATH64:?}"/*
   fi
+  
+  # extract repo list and parse to pure names of packages
+  # which avoids a call to pacman as the local sync may be out-of-date
+  local work=$XDG_RUNTIME_DIR/ccm-repo-extract
+
+  if [[ ! -d "$work" ]]; then
+    su -c "mkdir $work" "$USER"
+  else
+    su -c "rm -rf ${work:?}/*" "$USER"
+  fi
+
+  su -c "tar xf $REPO/$REPO_NAME.db.tar.gz -C $work" "$USER"
+
+  # these two arrays should be symetrical so the number choices to follow should be in sync
+  mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
+  mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' ! -name '*.sig' | sort)
+
+  files_to_delete=("${tarfiles[@]}")
+  names_to_remove=("${pkgnames[@]}")
+
+  for i in "${names_to_remove[@]}"; do
+    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+  done
+
+  for i in "${files_to_delete[@]}"; do
+    rm -f "$i" 2>/dev/null
+    rm -f "$i".sig 2>/dev/null
+  done
+
+  rm -rf "$work"
 }
 
 purgecache() {
@@ -733,7 +763,7 @@ case "$1" in
   N)
     mesg="Deleting the entire buildroot and external repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_active && delete && nuke
+    check_config && check_active && nuke
     ;;
   p)
     check_config && distcc_check && preview
