@@ -1,4 +1,4 @@
-VERSION = 2.238
+VERSION = 2.240
 PN = clean-chroot-manager
 
 PREFIX ?= /usr

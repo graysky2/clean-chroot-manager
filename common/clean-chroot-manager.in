@@ -5,7 +5,7 @@
 
 # shellcheck disable=1090 disable=1091
 
-set -euo pipefail
+set -eo pipefail
 
 VERS='@VERSION@'
 PKG='clean-chroot-manager'
@@ -430,20 +430,23 @@ buildrepolist() {
   if [[ ! -d "$work" ]]; then
     su -c "mkdir $work" "$USER"
   else
-    su -c "rm -rf ${work:?}/*" "$USER"
+    su -c "rm -rf ${work:?}"/* "$USER"
   fi
 
-  su -c "tar xf $REPO/$REPO_NAME.db.tar.gz -C $work" "$USER"
-
-  # these two arrays should be symetrical so the number choices to follow should be in sync
-  mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
-  mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' ! -name '*.sig' | sort)
-
-  rm -rf "$work"
+  if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
+    su -c "tar xf $REPO/$REPO_NAME.db.tar.gz -C $work" "$USER"
+    # these two arrays should be symetrical so the number choices to follow should be in sync
+    mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
+    mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' ! -name '*.sig' | sort)
+    rm -rf "$work"
+  else
+    local mesg="Cannot locate or read $REPO/$REPO_NAME.db.tar.gz so quitting."
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+  fi
 }
 
 deletepkgs() {
-  buildrepolist || exit
+  buildrepolist
 
   for i in "${!tarfiles[@]}"; do
     printf "%2d) %s\n" $((i+1)) "$(basename "${tarfiles[i]}")"
@@ -497,7 +500,7 @@ nuke() {
 }
 
 nukeallpkgs() {
-  buildrepolist || exit
+  buildrepolist
 
   files_to_delete=("${tarfiles[@]}")
   names_to_remove=("${pkgnames[@]}")
