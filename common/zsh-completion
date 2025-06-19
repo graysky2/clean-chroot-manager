@@ -1,21 +1,21 @@
-#compdef clean-chroot-manager clean-chroot-manager64 ccm ccm64
+#compdef clean-chroot-manager clean-chroot-manager ccm
 
 _ccm() {
   local -a options
 
-  options=('c:create the clean chroot'
-          'cd:create the clean chroot with distcc'
-           'N:nuke the clean chroot and external repo if defined'
-           'n:nuke the clean chroot'
+  options=('c:create the chroot'
+          'cd:create the chroot with distcc'
+           'N:nuke the chroot and external repo if defined'
+           'n:nuke the chroot'
            't:toggle [*-testing] on or off'
            'R:repackage'
-           'S:run makepkg in the clean chroot but do not clean first'
-           's:run makepkg in the clean chroot'
+           'S:run makepkg in the but do not clean first'
+           's:run makepkg'
            'a:add packages in current dir to local repo'
-           'd:delete all packages in the local repo'
+           'd:delete selected packages in the local repo'
            'l:list packages in the local repo'
            'p:preview settings'
-           'u:update the clean chroot manually')
+           'u:update the chroot manually')
 
   _describe 'options' options
 }
