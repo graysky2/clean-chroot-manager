@@ -3,7 +3,9 @@
 # clean-chroot-manager by graysky
 #
 
-# shellcheck disable=1090
+# shellcheck disable=1090 disable=1091
+
+set -euo pipefail
 
 VERS='@VERSION@'
 PKG='clean-chroot-manager'
@@ -177,7 +179,8 @@ check_config() {
 
   if [[ -n "$GPGKEY" ]]; then
     # test that the defined key can sign
-    local rnd="$(uuidgen)"
+    local rnd
+    rnd="$(uuidgen)"
     su -c "touch /tmp/$rnd" "$USER"
 
     if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor /tmp/$rnd &>/dev/null" "$USER"; then
@@ -708,8 +711,9 @@ logbuild() {
   source PKGBUILD
   source /usr/share/makepkg/util/pkgbuild.sh
 
-  local pname=$(extract_global_variable "pkgname" 0 output && echo "$output")
-  local pver=$(get_full_version)
+  local pname pver
+  pname=$(extract_global_variable "pkgname" 0 output && echo "$output")
+  pver=$(get_full_version)
   echo -e "$(date +%c)\t$pname-$pver\t$howlong" >> "$BUILDLOG"
 }
 
