@@ -409,16 +409,12 @@ list() {
 }
 
 signit() {
-  if [[ -n $GPGKEY ]]; then
-    local filename="$1"
-    [[ -f "$filename".sig ]] && rm -f "$filename".sig
+  local filename="$1"
+  [[ -f "$filename".sig ]] && rm -f "$filename".sig
 
-    if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor $filename &>/dev/null" "$USER"; then
-      local mesg="Failed to sign $filename"
-      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
-    fi
-  else
-    return
+  if ! su -c "gpg --detach-sign --use-agent -u $GPGKEY --no-armor $filename &>/dev/null" "$USER"; then
+    local mesg="Failed to sign $filename"
+    echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 }
 
@@ -722,7 +718,18 @@ logbuild() {
 
 case "$1" in
   a)
-    check_config && addit && indexit
+    check_config
+    mesg="Attempting to add all *pkg.tar* files to local repo"
+    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    addit
+    if [[ -n $GPGKEY ]]; then
+      GLOBIGNORE="*.log:*.sig"
+      for i in *.pkg.tar*; do
+        signit "$i"
+      done
+      unset GLOBIGNORE
+    fi
+    indexit
     ;;
   c)
     check_config && check_active && distcc_check && create
@@ -781,11 +788,13 @@ case "$1" in
 
     check_active
     build || exit 1
-    GLOBIGNORE="*.log:*.sig"
-    for i in *.pkg.tar*; do
-      signit "$i"
-    done
-    unset GLOBIGNORE
+    if [[ -n $GPGKEY ]]; then
+      GLOBIGNORE="*.log:*.sig"
+      for i in *.pkg.tar*; do
+        signit "$i"
+      done
+      unset GLOBIGNORE
+    fi
     indexit
     ;;
   s)
@@ -802,11 +811,13 @@ case "$1" in
     # flag to add '-c' to the args array
     CLEANIT=1
     build || exit 1
-    GLOBIGNORE="*.log:*.sig"
-    for i in *.pkg.tar*; do
-      signit "$i"
-    done
-    unset GLOBIGNORE
+    if [[ -n $GPGKEY ]]; then
+      GLOBIGNORE="*.log:*.sig"
+      for i in *.pkg.tar*; do
+        signit "$i"
+      done
+      unset GLOBIGNORE
+    fi
     indexit && logbuild
     ;;
   S)
