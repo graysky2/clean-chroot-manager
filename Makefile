@@ -39,6 +39,7 @@ uninstall:
 	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm64"
 	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm"
 	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/$(PN).1.gz"
+	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/ccm.1.gz"
 	$(Q)$(RM) -r "$(DESTDIR)$(SKELDIR)"
 	$(Q)$(RM) "$(DESTDIR)/$(BASHCDIR)/_ccm"
 	$(Q)$(RM) "$(DESTDIR)/$(ZSHCDIR)/_ccm"
