@@ -2,11 +2,12 @@ VERSION = 2.238
 PN = clean-chroot-manager
 
 PREFIX ?= /usr
+BASHCDIR = $(PREFIX)/share/bash-completion/completions
 BINDIR = $(PREFIX)/bin
 DOCDIR = $(PREFIX)/share/doc/$(PN)-$(VERSION)
 MANDIR = $(PREFIX)/share/man/man1
 SKELDIR = $(PREFIX)/share/$(PN)
-ZSHDIR = $(PREFIX)/share/zsh/site-functions
+ZSHCDIR = $(PREFIX)/share/zsh/site-functions
 RM = rm -f
 Q = @
 
@@ -22,14 +23,14 @@ install-bin:
 	# failsafe is to make a ccm64 and ccm32 for each build mode
 	ln -s $(PN)64 "$(DESTDIR)$(BINDIR)/ccm64"
 	install -Dm644 common/ccm.skel "$(DESTDIR)$(SKELDIR)/ccm.skel"
-	install -d "$(DESTDIR)$(ZSHDIR)"
-	install -m644  common/zsh-completion "$(DESTDIR)/$(ZSHDIR)/_ccm"
 
 install-man:
 	$(Q)echo -e '\033[1;32mInstalling manpage...\033[0m'
 	install -Dm644 doc/$(PN).1 "$(DESTDIR)$(MANDIR)/$(PN).1"
 	gzip -9 "$(DESTDIR)$(MANDIR)/$(PN).1"
 	ln -s $(PN).1.gz "$(DESTDIR)$(MANDIR)/ccm.1.gz"
+	install -Dm644 common/zsh-completion "$(DESTDIR)/$(ZSHCDIR)/_ccm"
+	install -Dm644 common/bash-completion "$(DESTDIR)/$(BASHCDIR)/_ccm"
 
 install: install-bin install-man
 
@@ -39,7 +40,8 @@ uninstall:
 	$(Q)$(RM) "$(DESTDIR)$(BINDIR)/ccm"
 	$(Q)$(RM) "$(DESTDIR)$(MANDIR)/$(PN).1.gz"
 	$(Q)$(RM) -r "$(DESTDIR)$(SKELDIR)"
-	$(Q)$(RM) "$(DESTDIR)/$(ZSHDIR)/_ccm"
+	$(Q)$(RM) "$(DESTDIR)/$(BASHCDIR)/_ccm"
+	$(Q)$(RM) "$(DESTDIR)/$(ZSHCDIR)/_ccm"
 
 clean:
 	$(RM) common/$(PN)64

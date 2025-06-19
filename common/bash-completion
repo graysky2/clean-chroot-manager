@@ -1,0 +1,12 @@
+_ccm_completions()
+{
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    opts="c cd N n t R S s a d l p u"
+
+    COMPREPLY=( $(compgen -W "${opts[*]}" -- $cur) )
+    return 0
+}
+complete -F _ccm_completions clean-chroot-manager
+complete -F _ccm_completions ccm
