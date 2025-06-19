@@ -48,8 +48,9 @@ else
   USER="$SUDO_USER"
 fi
 
-HOMEDIR="$(getent passwd "$USER" | cut -d: -f6)"
-XDG_RUNTIME_DIR="/run/user/$(getent passwd "$USER" | cut -d: -f3)"
+user_info=$(getent passwd "$USER")
+HOMEDIR=$(echo "$user_info" | cut -d: -f6)
+XDG_RUNTIME_DIR="/run/user/$(echo "$user_info" | cut -d: -f3)"
 
 # allow user to override from cli thus using multiple files as needed
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOMEDIR/.config}"
