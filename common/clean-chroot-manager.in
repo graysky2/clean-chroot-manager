@@ -431,8 +431,21 @@ buildrepolist() {
 
   if [[ -f "$REPO/$REPO_NAME.db.tar.gz" ]]; then
     su -c "tar xf $REPO/$REPO_NAME.db.tar.gz -C $work" "$USER"
-    # these two arrays should be symetrical so the number choices to follow should be in sync
-    mapfile -t pkgnames < <(find "$work" -name desc -print0 | xargs -0 grep -A 1 --no-filename '%NAME%' | grep -v '%NAME%' | grep -v '^--$' | sort)
+
+    # Build a map of DB entry key (pkgname-pkgver-pkgrel) -> pkgname.
+    # The DB directory name for each entry is exactly pkgname-pkgver-pkgrel,
+    # which matches the tarfile stem after stripping the trailing -arch field.
+    # This lets us cross-reference on-disk files against the DB without
+    # assuming the two sets are the same size or order (e.g. orphaned old versions).
+    unset db_entry_to_pkgname
+    declare -gA db_entry_to_pkgname=()
+    local desc_path db_dir pkgname_val
+    while IFS= read -r desc_path; do
+      db_dir=$(basename "$(dirname "$desc_path")")
+      pkgname_val=$(awk '/^%NAME%/{getline; print; exit}' "$desc_path")
+      [[ -n "$pkgname_val" ]] && db_entry_to_pkgname["$db_dir"]="$pkgname_val"
+    done < <(find "$work" -name desc)
+
     mapfile -t tarfiles < <(find "$REPO" -name '*.pkg.tar*' ! -name '*.sig' | sort)
     rm -rf "$work"
   else
@@ -454,30 +467,45 @@ deletepkgs() {
     exit 0
   fi
 
-  files_to_delete=()
-  names_to_remove=()
+  local files_to_delete=()
 
   if [[ "$user_input" == "a" ]]; then
     files_to_delete=("${tarfiles[@]}")
-    names_to_remove=("${pkgnames[@]}")
   else
     IFS=' ' read -ra numbers <<< "$user_input"
     for num in "${numbers[@]}"; do
       if ! [[ "$num" =~ ^[0-9]+$ ]]; then
         continue
       fi
-      files_to_delete+=("${tarfiles[$((num-1))]}")
-      names_to_remove+=("${pkgnames[$((num-1))]}")
+      local idx=$((num - 1))
+      if (( idx < 0 || idx >= ${#tarfiles[@]} )); then
+        continue
+      fi
+      files_to_delete+=("${tarfiles[$idx]}")
     done
   fi
 
-  for i in "${names_to_remove[@]}"; do
-    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
-  done
+  local f stem db_key pkgname
+  for f in "${files_to_delete[@]}"; do
+    # Derive the DB key from the filename:
+    #   foo-1.3-1-x86_64.pkg.tar.zst -> strip extension -> foo-1.3-1-x86_64
+    #                                 -> strip trailing -arch -> foo-1.3-1
+    # This matches the directory name used by repo-add inside the DB tarball.
+    stem=$(basename "$f")
+    stem="${stem%.pkg.tar.*}"
+    db_key="${stem%-*}"
 
-  for i in "${files_to_delete[@]}"; do
-    rm -f "$i" 2>/dev/null
-    rm -f "$i".sig 2>/dev/null
+    pkgname="${db_entry_to_pkgname[$db_key]:-}"
+    if [[ -n "$pkgname" ]]; then
+      # Only remove from DB if this exact version is the registered entry.
+      # Orphaned older versions on disk will not have a db_key hit, so their
+      # pkgname resolves empty and we skip repo-remove, preserving the current
+      # DB entry for the newer version.
+      repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$pkgname" 2>/dev/null || true
+    fi
+
+    rm -f "$f"
+    rm -f "$f".sig 2>/dev/null
   done
 }
 
@@ -498,16 +526,23 @@ nuke() {
 nukeallpkgs() {
   buildrepolist
 
-  files_to_delete=("${tarfiles[@]}")
-  names_to_remove=("${pkgnames[@]}")
-
-  for i in "${names_to_remove[@]}"; do
-    repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$i" 2>/dev/null
+  # Remove each unique pkgname from the DB.
+  # Use an associative array to deduplicate in case multiple versions of the
+  # same package somehow appear in the DB (shouldn't happen, but be safe).
+  local -A _seen_names=()
+  local db_key pkgname
+  for db_key in "${!db_entry_to_pkgname[@]}"; do
+    pkgname="${db_entry_to_pkgname[$db_key]}"
+    if [[ -z "${_seen_names[$pkgname]+x}" ]]; then
+      _seen_names["$pkgname"]=1
+      repo-remove -q "$REPO/$REPO_NAME.db.tar.gz" "$pkgname" 2>/dev/null || true
+    fi
   done
 
-  for i in "${files_to_delete[@]}"; do
-    rm -f "$i" 2>/dev/null
-    rm -f "$i".sig 2>/dev/null
+  local f
+  for f in "${tarfiles[@]}"; do
+    rm -f "$f" 2>/dev/null
+    rm -f "$f".sig 2>/dev/null
   done
 }
 
