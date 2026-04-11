@@ -54,6 +54,8 @@ user_info=$(getent passwd "$USER")
 HOMEDIR=$(echo "$user_info" | cut -d: -f6)
 XDG_RUNTIME_DIR="/run/user/$(echo "$user_info" | cut -d: -f3)"
 
+CCM_LOCK="$XDG_RUNTIME_DIR/ccm.lock"
+
 # allow user to override from cli thus using multiple files as needed
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOMEDIR/.config}"
 CFGFILE=${CFGFILE:-$XDG_CONFIG_HOME/$PKG.conf}
@@ -71,7 +73,7 @@ check_config() {
   fi
 
   if [[ ! -f $SKEL ]]; then
-    local mesg="$SKEL is missing.  Reinstall this package to continue."
+    local mesg="$SKEL is missing. Reinstall this package to continue."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
@@ -200,11 +202,15 @@ check_chroot() {
   fi
 }
 
-check_active() {
-  if pidof -q -x makechrootpkg; then
-    mesg="Active build detected.  Try again when not building."
+acquire_build_lock() {
+    exec {LOCK_FD}>"$CCM_LOCK"
+
+  if ! flock -n "$LOCK_FD"; then
+    exec {LOCK_FD}>&-
+    mesg="Active build detected. Try again when not building."
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
+  trap "flock -u $LOCK_FD; exec {LOCK_FD}>&-" EXIT INT TERM
 }
 
 create() {
@@ -384,7 +390,7 @@ indexit() {
 
   # The rm statement above can return 1 if the file to remove is not found,
   # causing the function to return a non-zero error code even if everything
-  # went fine.  If we've made it to this point, the build was run
+  # went fine. If we've made it to this point, the build was run
   # successfully, so return 0 instead
   return 0
 }
@@ -652,11 +658,14 @@ preview() {
     echo -en "${BOLD} chroot options:"
     echo -e "$(tput cr)$(tput cuf 21)${BOLD}$TESTING_C  $DISTCC_C  $CCACHE_C${ALL_OFF}"
 
-    if pidof -q -x makechrootpkg; then
+    local _preview_fd
+    exec {_preview_fd}>"$CCM_LOCK"
+    if ! flock -n "$_preview_fd" 2>/dev/null; then
       etime=$( ps --no-headers -o %t "$(pidof -x sudo ccm | awk '{ print $(NF) }')" )
       echo;  echo -en "${BOLD} building, elasped:"
       echo -e "$(tput cr)$(tput cuf 21)${BOLD}${etime/      /}${ALL_OFF}"
     fi
+    exec {_preview_fd}>&-
   fi
 }
 
@@ -767,11 +776,11 @@ case "$1" in
     indexit
     ;;
   c)
-    check_config && check_active && distcc_check && create
+    check_config && acquire_build_lock && distcc_check && create
     ;;
   cd)
     # force running with distcc to override the config file setting
-    check_config && check_active && distcc_check
+    check_config && acquire_build_lock && distcc_check
     RUNDISTCC=y
     create
     ;;
@@ -779,7 +788,7 @@ case "$1" in
     check_config && purgecache
     ;;
   t)
-    check_config && check_active && check_chroot && testing
+    check_config && acquire_build_lock && check_chroot && testing
     # no need to call update since testing function handles this
     ;;
   d)
@@ -796,14 +805,16 @@ case "$1" in
     list
     ;;
   n)
+    check_config && acquire_build_lock
     mesg="Deleting the entire chroot..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_active && nuke
+    nuke
     ;;
   N)
+    check_config && acquire_build_lock
     mesg="Deleting the entire chroot and external repo..."
     echo -e "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
-    check_config && check_active && nuke && nukeallpkgs
+    nuke && nukeallpkgs
     ;;
   p)
     check_config && distcc_check && preview
@@ -816,12 +827,12 @@ case "$1" in
     fi
 
     postargs+=('-Rf')
+    acquire_build_lock
     mesg="Attempting to repackage..."
     echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
     # flag to NOT add a '-c' to the args array
     CLEANIT=0
 
-    check_active
     build || exit 1
     if [[ -n $GPGKEY ]]; then
       GLOBIGNORE="*.log:*.sig"
@@ -833,7 +844,7 @@ case "$1" in
     indexit
     ;;
   s)
-    check_config && check_active && distcc_check
+    check_config && acquire_build_lock && distcc_check
     if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       mesg="No chroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -856,7 +867,7 @@ case "$1" in
     indexit && logbuild
     ;;
   S)
-    check_config && check_active && distcc_check
+    check_config && acquire_build_lock && distcc_check
     if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       mesg="No chroot has been created so making one now..."
       echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
@@ -877,7 +888,7 @@ case "$1" in
     indexit && logbuild
     ;;
   u)
-    check_config && check_active && check_chroot && update
+    check_config && acquire_build_lock && check_chroot && update
     ;;
   *)
     echo -e "${BOLD}$PKG v$VERS${ALL_OFF}"
