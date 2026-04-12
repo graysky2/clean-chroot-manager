@@ -5,6 +5,14 @@
 # physical media, it will not survive a reboot. See the manpage for tips.
 CHROOTPATH="/scratch/.chroot"
 
+# Uncomment and increase to enable multiple independent build roots.
+# Each additional slot gets its own chroot directory under CHROOTPATH.
+# Slot 1 always uses CHROOTPATH as-is; slot 2 becomes CHROOTPATH-2, etc.
+# All slots share a single local repo. Switch between slots with: ccm <n>
+# Note: slot directories on a tmpfs will be detected as absent after reboot
+# and the active slot will silently reset to the lowest one still present.
+#MAX_ROOTS=1
+#
 # Optionally specify a key to use for package signing
 # if no key is defined, ccm will not generate signatures for packages
 #GPGKEY=
