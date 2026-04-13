@@ -22,11 +22,10 @@ AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 | a | Add packages in current dir to the local repo. |
 | c | Create the chroot. |
 | cd | Create the chroot with distcc enabled (if you do not want to set up in the config file). |
-| cp | Purge all files in the CCACHE_DIR (optional if building with ccache). |
-| d | Delete all packages in the local repo without nuking the entire build (i.e. the packages you built to date). |
+| `<n>` | Switch the active build slot to slot n |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | N | Nuke the chroot and the external repo (if defined). |
-| n | Nuke the chroot (delete it and everything under it). |
+| n | Nuke the active chroot slot (delete it and everything under it). |
 | p | Preview settings. Show some bits about the chroot itself. |
 | R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. |
@@ -55,6 +54,14 @@ Deletes everything under the top level of the chroot effectively removing it fro
  $ sudo ccm n
 ```
 
+Create a second build slot and switch between them:
+```
+$ sudo ccm c        # creates slot 2, switches to it automatically
+$ sudo ccm 1        # switch back to slot 1
+$ sudo ccm 2        # switch to slot 2
+$ sudo ccm p        # preview state of all slots
+```
+
 ## Tips
 * Since ccm requires sudo rights, consider making an alias for invoking it as such in your ~/.bashrc or the like. For example:
 
@@ -62,6 +69,7 @@ Deletes everything under the top level of the chroot effectively removing it fro
  alias ccm='sudo ccm'
 ```
 * If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See `$XDG_CONFIG_HOME/clean-chroot-manager.conf` for setup instructions.
+* To maintain multiple independent build environments (e.g. one with [testing] enabled and one without or simply building two packages at the same time), set `MAX_ROOTS=2` or higher in the config file. All slots share a single local repo. Use `ccm <n>` to switch between them and `ccm p` to see the state of each. Note that on a tmpfs, slots cleared by a reboot will be detected automatically and the active slot will reset to the lowest one still present.
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
 
 `tmpfs /scratch tmpfs nodev,size=20G 0 0`
