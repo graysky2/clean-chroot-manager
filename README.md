@@ -13,6 +13,11 @@ For example, let's say that we want to build "bar" from the AUR. "Bar" has a bui
 ## Download
 AUR Package: https://aur.archlinux.org/packages/clean-chroot-manager
 
+## Demo
+Here's a short video showing how ccm can be used to build two packages at the same time.
+
+https://github.com/user-attachments/assets/7c725c66-666d-49b1-9b5a-f329378a5f2e
+
 ## Setup
 `$XDG_CONFIG_HOME/clean-chroot-manager.conf` will be created on the first invocation of ccm and contains all user managed settings. Edit this file prior to running ccm a second time. Make sure the user running ccm has sudo rights to execute `/usr/bin/clean-chroot-manager` or `/usr/bin/ccm`.
 
