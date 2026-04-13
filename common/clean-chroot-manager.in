@@ -805,7 +805,7 @@ preview() {
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     echo -en "${BOLD} custom config:"
     echo -e "$(tput cr)$(tput cuf 18)$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
-    BR_THREADS=$(grep MAKEFLAGS= "$CUSTOM_MAKEPKG_CONF")
+    BR_THREADS=$(bash -c "source \"$CUSTOM_MAKEPKG_CONF\" 2>/dev/null; echo \"\${MAKEFLAGS:-}\"")
     THREADS="${BR_THREADS//[^0-9]/}"
   fi
 
