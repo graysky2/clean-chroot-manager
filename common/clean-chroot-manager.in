@@ -814,11 +814,14 @@ preview() {
     echo -e "$(tput cr)$(tput cuf 18)$CUSTOM_PACMAN_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
   fi
 
+  # honor the MAKEFLAGS in a custom config if defined ie override what is defined in the config file
   if [[ -f "$CUSTOM_MAKEPKG_CONF" ]]; then
     echo -en "${BOLD} custom config:"
     echo -e "$(tput cr)$(tput cuf 18)$CUSTOM_MAKEPKG_CONF${ALL_OFF}${BOLD}${ALL_OFF}"
     BR_THREADS=$(bash -c "source \"$CUSTOM_MAKEPKG_CONF\" 2>/dev/null; echo \"\${MAKEFLAGS:-}\"")
-    THREADS="${BR_THREADS//[^0-9]/}"
+    if [[ -n "$BR_THREADS" ]]; then
+      THREADS="${BR_THREADS//[^0-9]/}"
+    fi
   fi
 
   if [[ -d "$REPO" ]]; then
