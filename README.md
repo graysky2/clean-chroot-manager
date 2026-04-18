@@ -33,8 +33,8 @@ https://github.com/user-attachments/assets/7c725c66-666d-49b1-9b5a-f329378a5f2e
 | n | Nuke the active chroot slot (delete it and everything under it). |
 | p | Preview settings. Show some bits about the chroot itself. |
 | R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
-| s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. |
-| S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. |
+| s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. Optionally supply one or more pre-built package paths as additional arguments to install into the chroot before building. |
+| S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. Accepts the same optional package arguments as `s`. |
 | t | Toggle [core-testing]/[extra-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
 
@@ -48,6 +48,12 @@ Attempt to build the package in the gcchroot. If successful, the package will be
 ```
  $ cd /path/to/PKGBUILD
  $ sudo ccm s
+```
+
+Build with one or more pre-built packages installed into the chroot first (useful for AUR dependencies not yet in the local repo):
+```
+ $ sudo ccm s /scratch/foo-1.0-1-x86_64.pkg.tar.zst
+ $ sudo ccm s /scratch/foo-1.0-1-x86_64.pkg.tar.zst /scratch/bar-2.1-1-x86_64.pkg.tar.zst
 ```
 
 List out the contents of the chroot's local repo assuming something has been built. Useful to see what is present:
