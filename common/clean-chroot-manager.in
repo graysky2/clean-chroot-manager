@@ -66,6 +66,15 @@ if ! command -v mkarchroot >/dev/null 2>&1; then
   echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
 fi
 
+# helper to convert raw bytes to auto-scaling IEC units
+format_bytes() {
+    awk '{
+        split("B KiB MiB GiB TiB PiB", u);
+        n=$1; i=1; while(n>=1024 && i<6) { n/=1024; i++ }
+        printf "%.2f %s", n, u[i]
+    }'
+}
+
 check_config() {
   if [[ $EUID -ne 0 ]]; then
     local mesg="This script must be called as root."
@@ -803,7 +812,7 @@ preview() {
   echo
 
   if [[ -n "$CCACHE_DIR" ]]; then
-    CCSIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null|awk '{ print $1 }')
+    CCSIZE=$(diskus "$CCACHE_DIR" 2>/dev/null|format_bytes)
     [[ "$CCSIZE" = "0" ]] && CCSIZE="${BOLD}${RED}(Empty cache)${ALL_OFF}" || CCSIZE="${BOLD}($CCSIZE)${ALL_OFF}"
     echo -en "${BOLD} ccache path:"
     echo -e "$(tput cr)$(tput cuf 18)${BLUE}$CCACHE_DIR/${ALL_OFF} $CCSIZE"
@@ -826,7 +835,7 @@ preview() {
 
   if [[ -d "$REPO" ]]; then
     if ! find "$REPO" -maxdepth 0 -type d -empty |grep -q .; then
-      REPOSIZE="${BOLD}$(du -sh "$REPO" 2>/dev/null|awk '{ print $1 }')${ALL_OFF}"
+      REPOSIZE="${BOLD}$(diskus "$REPO" 2>/dev/null|format_bytes)${ALL_OFF}"
     else
       REPOSIZE="${BOLD}${RED}(Empty repo)${ALL_OFF}"
     fi
@@ -863,7 +872,7 @@ preview() {
       fi
 
       if [[ -f "$slot_path/root/.arch-chroot" ]]; then
-        SLOT_SIZE="($(du -sh "$slot_path" 2>/dev/null|awk '{ print $1 }'))"
+        SLOT_SIZE="($(diskus "$slot_path" 2>/dev/null|format_bytes))"
         echo -en "$slot_label"
         echo -e "$(tput cr)$(tput cuf 11)${BLUE}$slot_path/${ALL_OFF}${BOLD} $SLOT_SIZE${ALL_OFF}$active_marker"
 
@@ -919,7 +928,7 @@ preview() {
     # Single-root layout: original behavior
     if [[ -f "$CHROOTPATH"/root/.arch-chroot ]]; then
       HERE=1
-      PRESENT="${BOLD}($(du -sh "$CHROOTPATH" 2>/dev/null|awk '{ print $1 }'))${ALL_OFF}"
+      PRESENT="${BOLD}($(diskus "$CHROOTPATH" 2>/dev/null|format_bytes))${ALL_OFF}"
     else
       PRESENT="${BOLD}${RED}(None present)${ALL_OFF}"
     fi

@@ -1,4 +1,4 @@
-VERSION = 3.04
+VERSION = 3.05
 PN = clean-chroot-manager
 
 PREFIX ?= /usr

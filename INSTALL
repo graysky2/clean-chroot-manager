@@ -1,0 +1,16 @@
+DEPENDENCIES
+bash
+coreutils
+devtools
+diffutils
+diskus
+findutils
+gawk
+glibc
+grep
+ncurses
+sed
+sudo
+util-linux
+
+Don't build this manually, use the AUR package
