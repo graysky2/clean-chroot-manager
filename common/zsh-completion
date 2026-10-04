@@ -5,6 +5,7 @@ _ccm() {
 
   options=('c:create the chroot'
           'cd:create the chroot with distcc'
+           'C:re-run check() on a built package'
            'N:nuke the chroot and external repo if defined'
            'n:nuke the chroot'
            't:toggle [*-testing] on or off'

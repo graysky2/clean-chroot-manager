@@ -76,6 +76,10 @@ Example: sudo ccm s /path/to/foo.pkg.tar.zst /path/to/bar.pkg.tar.zst
 .RE
 .TP
 .B
+C
+Re-run the check() function of the current package without re-extracting its sources. The equivalent of `makepkg \fB-ef\fP` in the chroot.
+.TP
+.B
 R
 Repackage the current package if built. The equivalent of `makepkg \fB-sR\fP` in the chroot.
 .TP

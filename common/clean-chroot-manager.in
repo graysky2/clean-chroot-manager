@@ -1096,6 +1096,31 @@ case "$1" in
     fi
     create
     ;;
+  C)
+    check_config
+    if [[ ! -f "$CHROOTPATH"/root/.arch-chroot ]]; then
+      mesg="No chroot has been created/nothing to check."
+      echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
+    fi
+
+    # reuse the existing src/ tree so only check() needs to be re-run
+    postargs+=('-ef')
+    acquire_build_lock
+    mesg="Attempting to re-run check()..."
+    echo -e "${YELLOW}---->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"
+    # flag to NOT add a '-c' to the args array
+    CLEANIT=0
+
+    build || exit 1
+    if [[ -n $GPGKEY ]]; then
+      GLOBIGNORE="*.log:*.sig"
+      for i in *.pkg.tar*; do
+        signit "$i"
+      done
+      unset GLOBIGNORE
+    fi
+    indexit
+    ;;
   cd)
     # force running with distcc to override the config file setting
     check_config && distcc_check || exit
@@ -1274,6 +1299,7 @@ case "$1" in
       echo
     fi
     echo -e "${BOLD} --- BUILDING ---${ALL_OFF}"
+    echo -e "${BOLD}   C) Re-run check() on a built package (passes '-ef' to default)${ALL_OFF}"
     echo -e "${BOLD}   R) Repackage (passes '-Rf' to default)${ALL_OFF}"
     echo -e "${BOLD}   S) Run makepkg but do not clean first${ALL_OFF}"
     echo -e "${BOLD}   s) Run makepkg (default)${ALL_OFF}"

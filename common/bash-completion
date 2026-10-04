@@ -3,7 +3,7 @@ _ccm_completions()
     local cur prev opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
-    opts="c cd N n t R S s a d l p u"
+    opts="c cd C N n t R S s a d l p u"
 
     COMPREPLY=( $(compgen -W "${opts[*]}" -- $cur) )
     return 0

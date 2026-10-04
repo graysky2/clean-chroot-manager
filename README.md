@@ -30,6 +30,7 @@ https://github.com/user-attachments/assets/7c725c66-666d-49b1-9b5a-f329378a5f2e
 | `<n>` | Switch the active build slot to slot n |
 | l | List the contents of the local repo (i.e. the packages you built to date). |
 | N | Nuke the chroot and the external repo (if defined). |
+| C | Re-run the `check()` function of a previously built package, reusing its existing `src/` tree. The equivalent of `makepkg -ef` in the chroot. |
 | n | Nuke the active chroot slot (delete it and everything under it). |
 | p | Preview settings. Show some bits about the chroot itself. |
 | R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
