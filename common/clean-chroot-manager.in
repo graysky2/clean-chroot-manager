@@ -403,7 +403,7 @@ create() {
     echo -e "${RED}==> ERROR:${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}"; exit 1
   fi
 
-  local pkgs=('base-devel')
+  local pkgs=('base-devel') tmp_pac
 
   if [[ -n "$RUNDISTCC" ]]; then
     pkgs+=('distcc')
@@ -417,8 +417,12 @@ create() {
     # with pacman 7.0.0 having a setting of 'DownloadUser = alpm' in /etc/pacman.conf
     # will cause the creation of the chroot to break so this is a hacky fix
     if [[ -f /etc/pacman.conf ]]; then
-      sed '/DownloadUser = alpm/d' </etc/pacman.conf >/tmp/ccm-temp-pac.conf
-      insargs+=(-C /tmp/ccm-temp-pac.conf)
+      tmp_pac=$(mktemp) || exit 1
+      chmod 644 "$tmp_pac"
+      if ! sed '/DownloadUser = alpm/d' </etc/pacman.conf >"$tmp_pac"; then
+        rm -f "$tmp_pac"; exit 1
+      fi
+      insargs+=(-C "$tmp_pac")
     fi
   fi
 
@@ -436,8 +440,10 @@ create() {
   fi
 
   if ! mkarchroot "${insargs[@]}" "$CHROOTPATH"/root "${pkgs[@]}"; then
+    [[ -n "$tmp_pac" ]] && rm -f "$tmp_pac"
     exit 1
   fi
+  [[ -n "$tmp_pac" ]] && rm -f "$tmp_pac"
 
   if [[ -n "$RUNDISTCC" ]]; then
     if [[ $DISTCCFAIL -ne 1 ]]; then
