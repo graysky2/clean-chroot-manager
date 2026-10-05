@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/7c725c66-666d-49b1-9b5a-f329378a5f2e
 | R | Repackage the current package if built. The equivalent of `makepkg -sR` in the chroot. |
 | s | Run makepkg in build mode under the chroot. The equivalent of `makepkg -s` in the chroot. Optionally supply one or more pre-built package paths as additional arguments to install into the chroot before building. |
 | S | Run makepkg in build mode under the chroot without first cleaning it. Useful for rebuilds without dirtying the pristine chroot or when building packages with many of the same deps. Accepts the same optional package arguments as `s`. |
-| t | Toggle [core-testing]/[extra-testing] on/off in the chroot and update packages accordingly (upgrade or downgrade). |
+| t | Toggle [core-testing]/[extra-testing] (and [multilib-testing] if [multilib] is enabled) on/off in the chroot and update packages accordingly (upgrade or downgrade). |
 | u | Update the packages inside the chroot. The equivalent of `pacman -Syu` in the chroot. |
 
 ## Example Usage
@@ -81,7 +81,7 @@ $ sudo ccm p        # preview state of all slots
  alias ccm='sudo ccm'
 ```
 * If you have multiple PCs on your LAN, consider having them help you compile via distcc which is supported within ccm. See `$XDG_CONFIG_HOME/clean-chroot-manager.conf` for setup instructions.
-* To maintain multiple independent build environments (e.g. one with [testing] enabled and one without or simply building two packages at the same time), set `MAX_ROOTS=2` or higher in the config file. All slots share a single local repo. Use `ccm <n>` to switch between them and `ccm p` to see the state of each. Note that on a tmpfs, slots cleared by a reboot will be detected automatically and the active slot will reset to the lowest one still present.
+* To maintain multiple independent build environments (e.g. one with [testing] enabled and one without or simply building two packages at the same time), set `MAX_ROOTS=2` or higher in the config file. If `REPO` is defined, all slots share that single local repo; otherwise each slot keeps its own internal repo inside its chroot. Use `ccm <n>` to switch between them and `ccm p` to see the state of each. Note that on a tmpfs, slots cleared by a reboot will be detected automatically and the active slot will reset to the lowest one still present.
 * If your machine has lots of memory, consider locating the chroot to tmpfs to avoid disk usage/minimize access times. One way is to simply define a directory to mount as tmpfs like so in `/etc/fstab`:
 
 `tmpfs /scratch tmpfs nodev,size=20G 0 0`
