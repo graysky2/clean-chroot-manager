@@ -511,7 +511,7 @@ find_pkgs() {
     newer=(-newer "$2")
   fi
   find "$1" -maxdepth 1 -type f -name '*.pkg.tar*' ! -name '*.sig' \
-    "${newer[@]}" | sort
+    ! -name '*namcap.log' "${newer[@]}" | sort
 }
 
 # makechrootpkg moves finished packages to PKGDEST from the user's makepkg
